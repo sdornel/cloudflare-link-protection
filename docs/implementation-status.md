@@ -21,14 +21,14 @@ Updated 2026-10-27. The current release scope supports direct/native navigation.
 | Chromium and mobile WebKit integration | 20 passed, including real CTA/manual UI wiring, acknowledgment, loop guards, simulated return, and consent |
 | Dependency installation | `npm ci --ignore-scripts --offline --no-audit --no-fund` passed with pinned Playwright and Wrangler dependencies |
 | Neutral build and standalone example | Build passed; `example.html` matches the shared neutral renderer |
-| Workers deployment | Wrangler 4.154.0 dry run passed; local server verified HTML, CSS, security headers, cache policy, and missing/private-config paths returning 404 |
-| Hosted neutral demo | [Public Worker](https://cloudflare-link-protection.skdornel.workers.dev/) checked on 2026-10-27: HTTPS 200, security headers, CSS/cache policy, three sample hrefs, and working dropdown; Chromium with JavaScript enabled and disabled reported no browser errors |
-| Hosted missing URL | HTTP 404 with security headers, but an empty body even for a browser-style navigation; custom 404 rendering is verified locally and awaits deployment of `wrangler.jsonc` |
+| Workers deployment | Commit `e109edc` pushed to `main`; Cloudflare Workers Builds reported success on 2026-10-27. Wrangler 4.154.0 dry run also passed |
+| Hosted neutral demo | [Public Worker](https://cloudflare-link-protection.skdornel.workers.dev/) checked after deployment: HTTPS 200, security headers, three sample hrefs, updated Worker dropdown, `npm run build`, and no build-variable instructions; Chromium with JavaScript enabled and disabled reported no browser errors. Query-string navigation also passed |
+| Hosted missing URL | Browser navigation returns HTTP 404 and renders the custom Page not found document, with JavaScript enabled and disabled |
 | Public-source audit | Passed with Git-index inspection; no local production config was available for comparison |
 | Screenshots | Neutral 390×844 mobile and 1280×900 desktop Chromium captures generated and visually reviewed |
-| CI configuration | Node 22/24 unit/build checks on macOS and Ubuntu; Workers dry run, Chromium/WebKit, screenshots, and performance checks on Ubuntu |
+| GitHub Actions | [Run 40564944633](https://github.com/sdornel/cloudflare-link-protection/actions/runs/40564944633) passed all five jobs: Node 22/24 on macOS and Ubuntu, plus Workers dry run, Chromium/WebKit, screenshots, and performance checks |
 
-The CI matrix is configured; these local results do not claim that a remote Actions run has completed. Linux coverage was executed in Docker; WSL itself was not separately tested. The path fix uses filesystem canonicalization without OS-specific prefix substitutions.
+Both local verification and the linked remote CI run passed. Linux coverage includes Docker and Ubuntu runners; WSL itself was not separately tested. The path fix uses filesystem canonicalization without OS-specific prefix substitutions.
 
 ## Performance evidence
 
@@ -42,8 +42,6 @@ The command writes raw samples, versions, and conditions to ignored `browser-out
 
 ## Remaining external release checks
 
-- Deploy the current local changes to the existing Worker. The live demo still serves the earlier Pages setup guide; the updated Worker guide and Wrangler configuration are local changes awaiting publication.
-- After deployment, confirm missing URLs render the custom 404 page as well as returning HTTP 404.
 - Verify custom-domain DNS/certificates, optional analytics, and challenge behavior separately from `workers.dev`.
 - Record physical iOS/Android Instagram device, OS, and app versions, dates, prompt cancellation, exact destination URLs, and return behavior. Simulated scheme launches and lifecycle events do not establish real OS handoff or BFCache compatibility.
 - Complete manual screen-reader, browser zoom/large-text, custom-theme, and real-device usability checks. Automated layout, focus, contrast, and reduced-motion rules do not replace that review.

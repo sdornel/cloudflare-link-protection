@@ -72,6 +72,6 @@ The static output remains compatible with Pages. Existing projects can retain `n
 
 ## Completing the first hosted-demo release
 
-The [neutral demo](https://cloudflare-link-protection.skdornel.workers.dev/) is live. On 2026-10-27, HTTPS, security headers, CSS, and direct links with JavaScript enabled and disabled were checked. The deployed response still contains the earlier Pages setup guide; push the current source and Wrangler configuration, then redeploy to publish the corrected Worker instructions.
+The [neutral demo](https://cloudflare-link-protection.skdornel.workers.dev/) is live. Commit `e109edc` deployed successfully on 2026-10-27. The updated Worker setup guide, HTTPS, security headers, direct links, and custom 404 page were checked with JavaScript enabled and disabled. GitHub Actions passed all five jobs; see the [verification record](implementation-status.md).
 
-After updating the deployment, recheck the setup guide and custom 404 page. Record results in the status guide. Test any custom-domain challenge separately from `workers.dev`. Keep physical iOS/Android Instagram checks pending until real-device evidence exists.
+After future deployments, recheck the setup guide and custom 404 page. Record results in the status guide. Test any custom-domain challenge separately from `workers.dev`. Keep physical iOS/Android Instagram checks pending until real-device evidence exists.
