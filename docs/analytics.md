@@ -1,21 +1,46 @@
-# Free Cloudflare Web Analytics
+# Optional analytics
 
-Analytics is optional and off in the example configuration. Links work without its script. Choose one installation method to avoid duplicate beacons.
+Links, browser strategies, and the landing page work without any external analytics service. The neutral sample has empty provider identifiers. Never put account API keys or secrets in site configuration; browser measurement identifiers are public.
 
-## Dashboard integration
+## Cloudflare visits and performance
 
-Leave `analytics.cloudflareToken` empty. Go to **Workers & Pages → project → Metrics → Web Analytics → Enable**, then deploy again. Cloudflare injects the beacon on the next deployment. View the site under the account's **Web Analytics** page. [Pages analytics](https://developers.cloudflare.com/pages/how-to/web-analytics/).
+Use either dashboard injection or a manual beacon, not both. With `analytics.cloudflareToken` empty, enable Pages Web Analytics in the project dashboard and redeploy. Alternatively, create a Web Analytics site, put its public 32-character site token in this config field, and disable automatic injection for that site. See [Pages setup](https://developers.cloudflare.com/pages/how-to/web-analytics/) and the [FAQ](https://developers.cloudflare.com/web-analytics/faq/).
 
-## Configuration token
+Cloudflare Web Analytics does not currently support custom events or UTM-query reporting. It supplies visit/performance information, not CTA clicks, handoff success, or purchases. The build preserves CSP allowances for its beacon and collection endpoints.
 
-Alternatively, add the final hostname to Web Analytics and choose manual installation. Put the supplied site token in `analytics.cloudflareToken` in your selected config. Disable automatic injection for that same site, rebuild, and deploy. This is a public site token, not an account API credential.
+## Local events and GA4
 
-The generated CSP permits `static.cloudflareinsights.com`, the manual collection host `cloudflareinsights.com`, and same-origin collection used by automatic injection. See [setup and CSP guidance](https://developers.cloudflare.com/web-analytics/faq/).
+Enhanced builds emit `profile:analytics` events on `window`. With no collector enabled, these are transient local events and are not stored remotely. Set `analytics.debug: true` to inspect the same sanitized payloads in developer tools.
 
-## Verify and interpret
+```js
+window.addEventListener('profile:analytics', ({ detail }) => {
+  console.log(detail); // for local development only
+});
+```
 
-Visit the deployed hostname, wait for it to load, then navigate away. In Network tools, check for one beacon script and successful collection requests. If metrics are missing, inspect CSP errors, blocked scripts, a hostname/token mismatch, or WAF challenges. Localhost is not the registered analytics hostname.
+| Event | Meaning |
+| --- | --- |
+| `landing_view` | First visible client initialization |
+| `outbound_click` | Configured CTA activation |
+| `browser_strategy` | Selected direct/native strategy |
+| `handoff_attempt` | A scheme navigation was attempted |
+| `handoff_deferred` | Automatic opening needs a user gesture |
+| `handoff_page_hidden` | Page became hidden; not proof of success |
+| `handoff_unconfirmed` | Assistance timeout elapsed |
+| `handoff_returned` | Visitor returned after an observed departure |
+| `fallback_shown`, `fallback_click` | Help displayed or direct alternative activated |
+| `age_acknowledged` | Optional self-attestation action |
 
-Web Analytics provides traffic and performance information. It currently does not support custom events or UTM-query reporting, so this integration does not count button clicks or purchases. Browser restrictions and blockers can reduce counts or suppress referrers. [Analytics FAQ](https://developers.cloudflare.com/web-analytics/faq/).
+Payloads permit only a stable link ID, strategy, platform category, trigger, and bounded reason. They omit raw destination URLs, query parameters, fragments, user-agent strings, and arbitrary config. A client-module failure prevents local events while leaving HTML links functional.
 
-No additional analytics service or tracker has been added. Reassess privacy requirements if you add other trackers or collect personal data later.
+Set `analytics.ga4MeasurementId` to a valid `G-…` value for GA4 reporting. `landing_view` maps to one manual `page_view`; other names become custom events. The adapter overrides page location/referrer to omit queries/fragments, uses a generic page title, disables advertising features, bounds its pending queue, and never waits for delivery before navigating. Register event parameters as custom dimensions in GA4 if you need them in reports. See [GA4 events](https://developers.google.com/analytics/devguides/collection/ga4/events) and [manual page views](https://developers.google.com/analytics/devguides/collection/ga4/views).
+
+**Disable enhanced measurement for the web stream**, especially automatic outbound clicks, site search, and browser-history page changes. Otherwise the provider can emit duplicate or more detailed events outside this adapter's allowlist. This application does not configure your GA property for you.
+
+## Consent and failure behavior
+
+The default `ga4Consent: required` displays small inline allow/decline controls and loads no Google script before permission. Pre-consent clicks are not replayed later. Choosing Allow reports the current view only. Choosing Keep analytics off disables future adapter events; previously created provider cookies are not retroactively erased. The choice is in-memory and the control remains available on the page.
+
+`ga4Consent: granted` is an explicit deployment policy choice. It does not determine whether that policy meets requirements for your audience. Ads storage, personalization, and ads user-data consent remain denied; the integration enables no advertising features. Cloudflare collection is configured independently of this GA4 choice.
+
+Provider failures, blockers, offline visits, and rapid app changes lose events. Neither a timer, page-hide observation, nor a returned visitor proves the external browser loaded the destination. There is intentionally no `handoff_success` event. Verify reports with test traffic without publishing production configuration in debug logs or screenshots.

@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Static Profile Page configuration",
+  "description": "Backward-compatible site content and optional progressive enhancements. Build validation additionally checks URLs, computed link ID uniqueness, safe styling, image paths, and production readiness.",
+  "type": "object",
+  "required": [
+    "name",
+    "bio",
+    "description",
+    "siteUrl",
+    "placeholderLinks",
+    "profile",
+    "primaryLink",
+    "secondaryLinks",
+    "previewNote",
+    "seo",
+    "appearance",
+    "analytics"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "enum": [
+        1,
+        2
+      ],
+      "default": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "bio": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "siteUrl": {
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/httpsURL"
+        }
+      ]
+    },
+    "placeholderLinks": {
+      "type": "boolean"
+    },
+    "previewNote": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "initials",
+        "image"
+      ],
+      "properties": {
+        "initials": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "image": {
+          "type": "string",
+          "description": "Empty, an HTTPS image URL, or a local /images/ raster path. The build checks paths and symlinks."
+        },
+        "alt": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "image": {
+                "not": {
+                  "const": ""
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "alt"
+            ],
+            "properties": {
+              "alt": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "primaryLink": {
+      "$ref": "#/$defs/link"
+    },
+    "secondaryLinks": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/link"
+          },
+          {
+            "required": [
+              "enabled"
+            ]
+          }
+        ]
+      }
+    },
+    "seo": {
+      "type": "object",
+      "required": [
+        "title",
+        "image"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "image": {
+          "type": "string",
+          "description": "Empty, an HTTPS image URL, or a local /images/ raster path. The build checks paths and symlinks."
+        },
+        "imageAlt": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "image": {
+                "not": {
+                  "const": ""
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "imageAlt"
+            ],
+            "properties": {
+              "imageAlt": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "appearance": {
+      "type": "object",
+      "required": [
+        "browserThemeColor",
+        "colorScheme",
+        "faviconBackground",
+        "faviconText"
+      ],
+      "properties": {
+        "browserThemeColor": {
+          "type": "string",
+          "pattern": "^#[a-fA-F0-9]{6}$"
+        },
+        "faviconBackground": {
+          "type": "string",
+          "pattern": "^#[a-fA-F0-9]{6}$"
+        },
+        "faviconText": {
+          "type": "string",
+          "pattern": "^#[a-fA-F0-9]{6}$"
+        },
+        "colorScheme": {
+          "enum": [
+            "light",
+            "dark",
+            "light dark",
+            "dark light"
+          ]
+        }
+      }
+    },
+    "styles": {
+      "type": "object",
+      "description": "Recursive overrides to theme.json; null removes an inherited entry."
+    },
+    "browserOpening": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "direct",
+            "native"
+          ],
+          "default": "direct"
+        },
+        "autoOpen": {
+          "type": "boolean",
+          "default": false
+        },
+        "showManual": {
+          "type": "boolean",
+          "default": true
+        },
+        "iosStrategy": {
+          "enum": [
+            "instagram",
+            "safari"
+          ],
+          "default": "instagram"
+        },
+        "androidPackage": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_]*(?:\\.[a-zA-Z][a-zA-Z0-9_]*)+$",
+          "default": "com.android.chrome"
+        },
+        "fallbackDelayMs": {
+          "type": "integer",
+          "minimum": 800,
+          "maximum": 5000,
+          "default": 1800
+        },
+        "labels": {
+          "type": "object",
+          "properties": {
+            "open": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "retry": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "continue": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "dismiss": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "pending": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "unconfirmed": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "iosInstructions": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "androidInstructions": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "ageAcknowledgment": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "maxLength": 500
+        },
+        "remember": {
+          "enum": [
+            "session",
+            "none"
+          ],
+          "default": "session"
+        }
+      }
+    },
+    "analytics": {
+      "type": "object",
+      "required": [
+        "cloudflareToken"
+      ],
+      "properties": {
+        "cloudflareToken": {
+          "type": "string",
+          "pattern": "^(?:[a-fA-F0-9]{32})?$"
+        },
+        "ga4MeasurementId": {
+          "type": "string",
+          "pattern": "^(?:G-[A-Z0-9]{4,20})?$",
+          "default": ""
+        },
+        "ga4Consent": {
+          "enum": [
+            "required",
+            "granted"
+          ],
+          "default": "required"
+        },
+        "debug": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "httpsURL": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://[^\\s\\\\]+$",
+      "not": {
+        "pattern": "^https://[^/?#]*@"
+      }
+    },
+    "link": {
+      "type": "object",
+      "required": [
+        "label",
+        "url"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "url": {
+          "$ref": "#/$defs/httpsURL"
+        },
+        "icon": {
+          "enum": [
+            "none",
+            "arrow",
+            "heart"
+          ],
+          "default": "none"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{1,40}$"
+        },
+        "openingMode": {
+          "enum": [
+            "inherit",
+            "direct",
+            "native"
+          ],
+          "default": "inherit"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

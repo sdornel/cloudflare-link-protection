@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { copyFile, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -9,7 +9,7 @@ import { compileTheme } from '../scripts/theme.mjs';
 
 const original = JSON.parse(await readFile(path.join(root, 'config/site.example.json'), 'utf8'));
 const theme = JSON.parse(await readFile(path.join(root, 'config/theme.json'), 'utf8'));
-const fresh = () => structuredClone(original);
+const fresh = () => { const config = structuredClone(original); delete config.browserOpening; delete config.schemaVersion; delete config.ageAcknowledgment; return config; };
 async function temp(t) {
   const dir = await mkdtemp(path.join(tmpdir(), 'profile-page-test-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
@@ -26,12 +26,17 @@ test('standalone example has embedded styling and stays unchanged by configured 
   const before = await readFile(file, 'utf8');
   assert.match(before, /<style>[\s\S]+<\/style>/);
   assert.doesNotMatch(before, /<script\b|<link\b[^>]*rel=["']stylesheet|<img\b|<iframe\b|@import\b|url\s*\(|\{\{[A-Z_]+\}\}/i);
-  const links = [...before.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((match) => match[1]);
+  const links = [...before.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*data-link-id=/g)].map((match) => match[1]);
   assert.ok(links.length >= 3);
-  assert.ok(links.every((url) => url.startsWith('#') || new URL(url).hostname === 'example.com'));
+  assert.ok(links.every((url) => new URL(url).hostname === 'example.com'));
+  const allLinks = [...before.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((match) => match[1]);
+  assert.ok(allLinks.every((url) => url.startsWith('#') || ['example.com', 'dash.cloudflare.com', 'developers.cloudflare.com'].includes(new URL(url).hostname)));
+  assert.match(before, /<details id="publish-guide" class="setup-guide">/);
+  assert.match(before, /npm run build:example/);
   const config = { ...fresh(), name: 'PRIVATE_EXAMPLE_ISOLATION_MARKER', styles: { variables: { accent: '#234567' } } };
   const { html } = await built(t, { privateBuild: true, env: { SITE_CONFIG_JSON: JSON.stringify(config) } });
   assert.match(html, /PRIVATE_EXAMPLE_ISOLATION_MARKER/);
+  assert.doesNotMatch(html, /id="publish-guide"|Publish with Cloudflare/);
   assert.equal(await readFile(file, 'utf8'), before);
   assert.doesNotMatch(before, /PRIVATE_EXAMPLE_ISOLATION_MARKER/);
 });
@@ -40,9 +45,11 @@ test('explicit example build ignores private inputs and emits direct functional 
   const { html, outDir } = await built(t, { exampleBuild: true, env: { SITE_CONFIG_JSON: 'INVALID_PRIVATE_MARKER' } });
   for (const link of [original.primaryLink, ...original.secondaryLinks]) assert.ok(html.includes(`href="${link.url}"`));
   assert.match(html, /noindex, follow/);
-  assert.doesNotMatch(html, /PRIVATE_MARKER|<script|http-equiv=["']refresh|target=["']_blank|onclick=/i);
+  assert.match(html, /id="publish-guide"/);
+  assert.match(html, /SKIP_DEPENDENCY_INSTALL/);
+  assert.doesNotMatch(html, /PRIVATE_MARKER|http-equiv=["']refresh|target=["']_blank|onclick=/i);
   assert.match(await readFile(path.join(outDir, 'robots.txt'), 'utf8'), /User-agent: \*\nAllow: \//);
-  assert.deepEqual((await readdir(outDir)).sort(), ['404.html', '_headers', 'favicon.svg', 'index.html', 'robots.txt', 'styles.css']);
+  assert.deepEqual((await readdir(outDir)).sort(), ['404.html', '_headers', 'assets', 'favicon.svg', 'index.html', 'robots.txt', 'styles.css']);
 });
 
 test('default build uses local config, styles and private images, then falls back when the file is absent', async (t) => {
@@ -51,6 +58,7 @@ test('default build uses local config, styles and private images, then falls bac
     await mkdir(path.dirname(path.join(projectRoot, file)), { recursive: true });
     await copyFile(path.join(root, file), path.join(projectRoot, file));
   }
+  await cp(path.join(root, 'src/client'), path.join(projectRoot, 'src/client'), { recursive: true });
   const local = fresh();
   local.name = 'LOCAL_CUSTOM_MARKER';
   local.primaryLink.url = 'https://custom.example/projects';
@@ -65,6 +73,7 @@ test('default build uses local config, styles and private images, then falls bac
   assert.equal(result.outDir, path.dirname(index));
   assert.equal(result.configSource, 'local');
   assert.match(await readFile(index, 'utf8'), /LOCAL_CUSTOM_MARKER/);
+  assert.doesNotMatch(await readFile(index, 'utf8'), /id="publish-guide"/);
   assert.ok((await readFile(index, 'utf8')).includes(`href="${local.primaryLink.url}"`));
   assert.match(await readFile(path.join(result.outDir, 'styles.css'), 'utf8'), /--accent: #234567/);
   assert.deepEqual(await readdir(path.join(result.outDir, 'images')), ['portrait.png']);
@@ -72,6 +81,7 @@ test('default build uses local config, styles and private images, then falls bac
   await build({ projectRoot, exampleBuild: true, env: { SITE_CONFIG_JSON: 'INVALID_PRIVATE_MARKER' } });
   const exampleHTML = await readFile(index, 'utf8');
   assert.ok(exampleHTML.includes(original.name));
+  assert.match(exampleHTML, /id="publish-guide"/);
   assert.doesNotMatch(exampleHTML, /LOCAL_CUSTOM_MARKER|custom\.example/);
   assert.ok(!(await readdir(result.outDir)).includes('images'));
 
@@ -230,4 +240,31 @@ test('default text colors meet WCAG AA normal text contrast', () => {
     const values = [luminance(text), luminance(background)].sort((a, b) => a - b);
     assert.ok((values[1] + 0.05) / (values[0] + 0.05) >= 4.5, 'Default text contrast is below 4.5:1');
   }
+});
+
+test('native build ships versioned modules and only safe allowlisted public options', async (t) => {
+  const config = fresh();
+  config.browserOpening = { mode: 'native', internalNote: 'RUNTIME_PRIVATE_MARKER', labels: { unconfirmed: '</script><script>injection</script>' } };
+  config.ageAcknowledgment = { enabled: true, internalNote: 'RUNTIME_PRIVATE_MARKER' };
+  config.analytics.ga4MeasurementId = 'G-TEST1234';
+  const { html, outDir } = await built(t, { config });
+  assert.ok(html.includes('type="module"'));
+  assert.ok(html.includes('id="age-notice"'));
+  const runtime = html.match(/id="profile-options" type="application\/json">(.*?)<\/script>/s)[1];
+  assert.doesNotMatch(runtime, /RUNTIME_PRIVATE_MARKER|<script>|<\/script>/);
+  assert.equal(JSON.parse(runtime).browserOpening.labels.unconfirmed, config.browserOpening.labels.unconfirmed);
+  const script = html.match(/type="module" src="\.\/([^\"]+)"/)[1];
+  assert.match(await readFile(path.join(outDir, script), 'utf8'), /initialize/);
+  const headers = await readFile(path.join(outDir, '_headers'), 'utf8');
+  assert.match(headers, /www\.googletagmanager\.com/);
+  assert.doesNotMatch(headers, /unsafe-inline|unsafe-eval/);
+  assert.ok(!(await readdir(outDir)).includes('site.json'));
+});
+
+test('two deployments built from identical source isolate branding and runtime settings', async (t) => {
+  const left = fresh(); left.name = 'Site Alpha'; left.browserOpening = { mode: 'native' };
+  const right = fresh(); right.name = 'Site Beta'; right.primaryLink.url = 'https://beta.example/projects';
+  const a = await built(t, { config: left }); const b = await built(t, { config: right });
+  assert.match(a.html, /Site Alpha/); assert.doesNotMatch(a.html, /Site Beta|beta\.example/);
+  assert.match(b.html, /Site Beta/); assert.doesNotMatch(b.html, /Site Alpha|type="module"/);
 });

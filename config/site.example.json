@@ -12,20 +12,23 @@
   "primaryLink": {
     "label": "Explore my work",
     "url": "https://example.com/projects",
-    "icon": "arrow"
+    "icon": "arrow",
+    "id": "projects"
   },
   "secondaryLinks": [
     {
       "label": "Read my notes",
       "url": "https://example.com/notes",
       "icon": "none",
-      "enabled": true
+      "enabled": true,
+      "id": "notes"
     },
     {
       "label": "Get in touch",
       "url": "https://example.com/contact",
       "icon": "none",
-      "enabled": true
+      "enabled": true,
+      "id": "contact"
     }
   ],
   "previewNote": "Demo \u00b7 replace these example links with your own.",
@@ -35,7 +38,10 @@
     "imageAlt": ""
   },
   "analytics": {
-    "cloudflareToken": ""
+    "cloudflareToken": "",
+    "ga4MeasurementId": "",
+    "ga4Consent": "required",
+    "debug": false
   },
   "appearance": {
     "browserThemeColor": "#f8fafc",
@@ -43,5 +49,18 @@
     "faviconBackground": "#e1e9f8",
     "faviconText": "#314d7b"
   },
-  "styles": {}
+  "styles": {},
+  "schemaVersion": 2,
+  "browserOpening": {
+    "mode": "native",
+    "autoOpen": false,
+    "showManual": true,
+    "iosStrategy": "instagram",
+    "androidPackage": "com.android.chrome",
+    "fallbackDelayMs": 1800
+  },
+  "ageAcknowledgment": {
+    "enabled": false,
+    "remember": "session"
+  }
 }

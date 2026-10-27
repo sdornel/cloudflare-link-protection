@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeFeatures } from './features.mjs';
+import { isHTTPS } from '../src/client/browser-opening.js';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
 export const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (char) => ({
@@ -61,7 +63,7 @@ export function httpsURL(value, field) {
   requireText(value, field);
   let url;
   try { url = new URL(value); } catch { throw new Error(`${field} must be a complete HTTPS URL.`); }
-  if (url.protocol !== 'https:' || url.username || url.password) throw new Error(`${field} must use HTTPS without embedded credentials.`);
+  if (!isHTTPS(value)) throw new Error(`${field} must use HTTPS without embedded credentials, whitespace, or backslashes.`);
   return url;
 }
 
@@ -99,5 +101,6 @@ export function validateConfig(config, { production = false } = {}) {
   if (!['light', 'dark', 'light dark', 'dark light'].includes(config.appearance.colorScheme)) throw new Error('appearance.colorScheme must be light, dark, light dark, or dark light.');
   const token = config.analytics?.cloudflareToken;
   if (typeof token !== 'string' || (token && !/^[a-f0-9]{32}$/i.test(token))) throw new Error('analytics.cloudflareToken must be empty or a 32-character Web Analytics token.');
+  normalizeFeatures(config);
   return config;
 }

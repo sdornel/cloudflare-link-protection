@@ -51,8 +51,14 @@ Blanket challenges can interrupt embedded browsers and prevent crawlers or revie
 
 ## Public content and private inputs
 
-The page uses no crawler blocklist, content switching, delayed destination reveal, or automatic outbound redirects. `robots.txt` allows all agents. Demo `noindex` is an indexing preference, not access control.
+The page uses no crawler blocklist, content switching, delayed destination reveal, or automatic outbound CTA redirects. Opt-in native entry handoff can attempt the same landing page in an external browser; actual content and destinations remain unchanged. `robots.txt` allows all agents. Demo `noindex` is an indexing preference, not access control.
 
 Private build inputs keep deployment-specific data out of source control. They do not make the resulting website secret. Do not put API credentials in site configuration. Review both the page and its destinations against the rules of any platform where you share them; security challenges are not a compliance guarantee.
 
 For repository publication and history checks, see [configuration](configuration.md#before-publishing-the-repository).
+
+## Native schemes and optional analytics
+
+Configured destinations remain HTTPS anchors. Only the trusted strategy builder constructs custom launch schemes after URL validation. Incoming query parameters never select arbitrary automatic destinations. The `_lp_handoff` marker only prevents repeated attempts and grants no access.
+
+Runtime JSON includes an explicit public allowlist and escapes HTML-sensitive characters. Client modules remain external; GA4 origins are added to CSP only when configured. No `unsafe-inline` or `unsafe-eval` permission is added. A different browser has separate storage and may require challenge clearance again. A handoff cannot rescue a page whose challenge prevented the application from loading.

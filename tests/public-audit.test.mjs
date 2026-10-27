@@ -67,3 +67,15 @@ test('Git ignores private config, assets, outputs and archives, and forced track
   await assert.rejects(() => auditPublic(dir), /tracked file/);
   assert.ok((await readFile(path.join(dir, '.gitignore'), 'utf8')).includes('.private/'));
 });
+
+test('technical platform labels do not exempt creator identities or full destination URLs', async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'profile-technical-term-test-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await copyPublicSource(dir);
+  const config = { name: randomUUID(), secondaryLinks: [{ label: 'Instagram', url: `https://example.com/${randomUUID()}` }] };
+  await writeFile(path.join(dir, 'config/site.json'), JSON.stringify(config));
+  await appendFile(path.join(dir, 'README.md'), '\nInstagram browser compatibility.\n');
+  await auditPublic(dir);
+  await appendFile(path.join(dir, 'README.md'), config.secondaryLinks[0].url);
+  await assert.rejects(() => auditPublic(dir), /README.md/);
+});

@@ -23,3 +23,8 @@ site.config.json
 .codex/
 .DS_Store
 Thumbs.db
+
+# Local browser test output
+playwright-report/
+test-results/
+browser-output/

@@ -169,6 +169,128 @@
     },
     ".skip-link:focus": {
       "transform": "translateY(0)"
+    },
+    "[hidden]": {
+      "display": "none !important"
+    },
+    "button": {
+      "font-family": "inherit"
+    },
+    ".notice": {
+      "margin": "18px 0",
+      "padding": "16px",
+      "border": "1px solid var(--border)",
+      "border-radius": "18px",
+      "background": "var(--link-background)",
+      "text-align": "left",
+      "font-size": "14px",
+      "line-height": "1.6"
+    },
+    ".notice p": {
+      "margin": "0 0 10px"
+    },
+    ".notice .status:empty": {
+      "display": "none"
+    },
+    ".hint": {
+      "color": "var(--muted)"
+    },
+    ".actions": {
+      "display": "flex",
+      "flex-wrap": "wrap",
+      "gap": "8px"
+    },
+    ".quiet-button": {
+      "display": "inline-flex",
+      "align-items": "center",
+      "justify-content": "center",
+      "min-height": "44px",
+      "padding": "10px 14px",
+      "border": "1px solid var(--border)",
+      "border-radius": "12px",
+      "background": "var(--link-background)",
+      "color": "var(--text)",
+      "font-size": "14px",
+      "line-height": "1.5",
+      "font-weight": "600",
+      "cursor": "pointer",
+      "text-decoration": "none"
+    },
+    ".quiet-button:hover": {
+      "background": "var(--avatar-background)"
+    },
+    ".browser-tools": {
+      "margin-top": "20px"
+    },
+    ".browser-tools:has([hidden])": {
+      "margin-top": "0"
+    },
+    ".setup-guide": {
+      "margin-top": "24px",
+      "border": "1px solid var(--border)",
+      "border-radius": "18px",
+      "background": "var(--link-background)",
+      "text-align": "left",
+      "font-size": "14px",
+      "line-height": "1.65",
+      "overflow-wrap": "anywhere"
+    },
+    ".setup-guide summary": {
+      "min-height": "48px",
+      "padding": "14px 18px",
+      "font-weight": "600",
+      "cursor": "pointer"
+    },
+    ".setup-guide summary:hover": {
+      "color": "var(--accent)"
+    },
+    ".setup-content": {
+      "padding": "0 18px 18px"
+    },
+    ".setup-content h2": {
+      "margin": "20px 0 8px",
+      "font-size": "16px",
+      "line-height": "1.4"
+    },
+    ".setup-content p": {
+      "margin": "10px 0"
+    },
+    ".setup-content a": {
+      "color": "var(--accent)",
+      "text-underline-offset": "3px"
+    },
+    ".setup-content code": {
+      "font-family": "ui-monospace, SFMono-Regular, Consolas, monospace",
+      "font-size": "0.9em"
+    },
+    ".setup-steps, .setup-content ul": {
+      "padding-left": "20px"
+    },
+    ".setup-content li": {
+      "margin-block": "8px"
+    },
+    ".setup-settings": {
+      "margin": "12px 0",
+      "padding": "12px 14px",
+      "border-radius": "12px",
+      "background": "var(--background)"
+    },
+    ".setup-settings dt": {
+      "color": "var(--muted)",
+      "font-size": "12px"
+    },
+    ".setup-settings dd": {
+      "margin": "0 0 12px"
+    },
+    ".setup-settings dd:last-child": {
+      "margin-bottom": "0"
+    },
+    ".setup-help": {
+      "margin-top": "20px",
+      "border-block": "1px solid var(--border)"
+    },
+    ".setup-help summary": {
+      "padding-inline": "0"
     }
   },
   "media": {

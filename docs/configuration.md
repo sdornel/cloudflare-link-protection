@@ -2,7 +2,7 @@
 
 ## Standalone example versus the real page
 
-`example.html` is a fixed, standalone preview with embedded CSS. Open it directly in a browser. It does not load JSON, import a stylesheet, run scripts, or depend on the build system. It remains unchanged when configuration changes or another site is built.
+`example.html` is a fixed, standalone preview with embedded CSS. Open it directly in a browser. It does not load JSON, import a stylesheet, run scripts, or depend on the build system. Ordinary builds leave it unchanged. The explicit `npm run example:refresh` command regenerates it from the neutral sample, shared renderer, and theme.
 
 `src/index.html` is the configurable page template, not a ready-to-open page. A normal build turns it into `dist/index.html`, selecting `SITE_CONFIG_JSON` first, then `config/site.json` if it exists, then the neutral `config/site.example.json`. Configuration is applied at build time, so the deployed page needs no runtime JSON request. The raw config is not copied to the output.
 
@@ -50,7 +50,7 @@ Icons are `none`, `arrow`, or `heart`. Links are general HTTPS destinations, wit
 
 ## Styling
 
-All CSS for the configurable page lives in `config/theme.json`. The independent `example.html` intentionally has an embedded snapshot of its default look. Theme sections are:
+All CSS for the configurable page lives in `config/theme.json`. The standalone `example.html` embeds a neutral snapshot produced by the same renderer; refresh it explicitly after changing the shared theme. Theme sections are:
 
 - `variables`: reusable CSS custom properties; keys omit the leading `--`.
 - `rules`: selectors mapped to ordinary CSS declarations, using kebab-case property names.
@@ -102,6 +102,34 @@ Cloudflare cannot read ignored files from your computer. For Git-backed private 
 
 For a repository that already contains private configuration, start with a clean public repository or remove the sensitive history before changing visibility. The project does not rewrite repository history automatically.
 
-A customized Pages project connected to a public repo may expose its deployment URL through GitHub checks even though its input config is encrypted. If keeping that association private matters, deploy from a separate private repository or upload the built output manually instead. The source/config separation alone does not guarantee anonymity.
+A customized Pages project connected to a public repo may expose its deployment URL through GitHub checks even though its input config is encrypted. If keeping that association private matters, build locally from this same repository and upload the output manually instead. The source/config separation alone does not guarantee anonymity.
 
 For additional case-insensitive keyword checks, put an array of strings in `.private/audit-terms.json`. Keep that file ignored too: your exclusion terms can reveal the very associations you want to keep out of public source. The checker reports the affected source file without printing the matched private value.
+
+## Browser features and schema
+
+The [schema](../config/site.schema.json) supplies editor hints; the build additionally checks safe CSS, real image paths, complete HTTPS URLs, generated ID uniqueness, and production readiness. Add `"$schema": "./site.schema.json"` to your local config for editor completion. Schema versions 1 and 2 are accepted; missing version means legacy. New feature blocks are optional on either version.
+
+| Option | Default / behavior |
+| --- | --- |
+| `browserOpening.mode` | `direct` when omitted; `native` enables supported mobile assistance |
+| `browserOpening.autoOpen` | `false`; experimental one-time iOS page handoff |
+| `browserOpening.showManual` | `true`; shown only in eligible native contexts |
+| `browserOpening.iosStrategy` | `instagram`; optional `safari` alternative |
+| `browserOpening.androidPackage` | `com.android.chrome`; validate installed-browser behavior before changing |
+| `browserOpening.fallbackDelayMs` | `1800`; integer 800–5000, used only to show unconfirmed-attempt help |
+| `browserOpening.labels` | Optional plain-text `open`, `retry`, `continue`, `dismiss`, `pending`, `unconfirmed`, `iosInstructions`, `androidInstructions` |
+| Link `id` | Unique lowercase letters/digits/underscores/hyphens, 1–40 characters; positional default if absent |
+| Link `openingMode` | `inherit`, `direct`, or `native` |
+| `ageAcknowledgment.enabled` | `false` |
+| `ageAcknowledgment.message` | Configurable plain-text notice |
+| `ageAcknowledgment.remember` | `session` or `none`; default `session` |
+| `analytics.ga4MeasurementId` | Empty by default; optional `G-…` public identifier |
+| `analytics.ga4Consent` | `required` by default; `granted` is an explicit operator policy choice |
+| `analytics.debug` | `false`; local event logging without raw URLs |
+
+IDs are analytics labels: use generic values such as `projects`, never customer identifiers or secrets. All actual destinations remain public hrefs. No Bouncy-specific mode exists; use a service URL as an ordinary destination if needed.
+
+The 18+ feature is a self-attestation notice, not identity verification or restricted access. With JavaScript, an acknowledgment precedes enhanced navigation and remembers only a boolean. Without scripts, the notice and ordinary links remain available. An external browser has separate storage and can ask again.
+
+Normal builds compile selected options into small public runtime settings; they do not publish the original JSON. An old config with no new feature blocks produces the original direct-link behavior.

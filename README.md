@@ -1,97 +1,113 @@
-# Static Profile Page
+# Static Profile Platform
 
-A configurable, mobile-first profile and links page built with HTML and a dependency-free Node.js generator. It uses your ignored local configuration when present and otherwise shows a neutral portfolio sample. The same code powers a customized site without committing its identity, destinations, or images to the source repository.
+A lightweight, self-hosted links page with native, best-effort external-browser opening. One public repository can power a neutral portfolio demo and separately configured production sites on Cloudflare Pages Free.
 
-See [SPEC.md](SPEC.md) for required behavior, configuration boundaries, publication rules, and acceptance criteria.
+The landing page renders as ordinary HTML. Its buttons keep their real HTTPS destinations when scripts, analytics, or a browser handoff fail. Experimental mobile strategies enhance supported Instagram visits; normal browsers keep normal navigation.
 
-## Open the default example
+## Try it
 
-Double-click [example.html](example.html). It is a standalone, neutral portfolio example with its own embedded styling and working example-domain buttons. It needs no config, server, JavaScript, dependencies, or build step. You can copy that one file elsewhere and open it.
-
-`example.html` is a fixed reference. Changing a config or building a private site does not modify it. It is safe to commit alongside the innocent sample [config/site.example.json](config/site.example.json).
-
-## Build the configurable index.html
-
-The actual page uses [src/index.html](src/index.html) as its template. A build reads a selected configuration and generates `index.html` with the content and styles already included in static files. The browser does not fetch or receive the raw JSON configuration.
-
-Node.js 22 or newer is the only prerequisite. No package installation is needed.
+Open [example.html](example.html) for the standalone neutral design, or build the full application with Node.js 22 or newer:
 
 ```sh
-npm run build
 npm run dev
 ```
 
-`npm run build` generates `dist/index.html`. `npm run dev` builds it and serves it at **http://localhost:4173**. You can also open that generated file directly. Rebuild and refresh after changes.
+Visit **http://localhost:4173**. No package installation is needed to build or serve. Rebuild and refresh after editing settings. `npm run build` generates `dist/index.html`, which also opens directly from disk for the basic page; use HTTP/HTTPS to test JavaScript modules.
 
-The build selects the first available configuration:
+To pick up deployment later, open **Publish with Cloudflare** beneath the neutral demo's footer. The guide includes the exact Pages settings, a deployment checklist, and troubleshooting. It works offline in `example.html` (dashboard links require internet) and appears in sample builds, including `npm run build:example`. Configured pages omit it.
 
-1. `SITE_CONFIG_JSON`, if set (for Cloudflare or other build environments).
-2. `config/site.json`, if present (your ignored local settings).
-3. `config/site.example.json`, otherwise (the committed neutral sample).
+The standalone example shares the production renderer and embeds its stylesheet. Refresh it explicitly with `npm run example:refresh`; normal builds leave it untouched. [Browser screenshots](docs/testing.md#browser-screenshots) can be captured from the neutral renderer; screenshots and a hosted demo URL have not yet been produced in this checkout. No live deployment is claimed.
 
-An existing but invalid config fails the build instead of falling back. To force the neutral sample even with local settings present, run `npm run build:example`; it also writes `dist/index.html`. The standalone `example.html` always stays neutral.
+## Features
 
-## Configure everything
+- Responsive profile, initials or portrait, prominent primary CTA, ordered secondary links, SEO metadata, and real 404 page.
+- Content and complete page styling in JSON, with per-deployment theme overrides.
+- Native iOS scheme and Android intent strategies, manual Open in Browser, direct fallbacks, and loop guards.
+- Optional experimental automatic iOS page handoff, off by default; Android defers to a tap.
+- Optional 18+ acknowledgment, Cloudflare visit/performance analytics, and GA4 interaction events.
+- Safe config serialization, security headers, selective image copying, and public-source checks.
+- Unit/integration tests, a development-only Playwright suite, and neutral-input CI.
 
-| File | Purpose | Commit? |
-| --- | --- | --- |
-| `example.html` | Standalone default appearance, independent of every config | Yes |
-| `config/site.example.json` | Neutral demo content, links, metadata, and browser appearance | Yes |
-| `config/theme.json` | All page CSS: variables, selectors, responsive rules, animations | Yes |
-| `config/site.json` | Your deployment's full content and style overrides | No |
-| `.private/assets/` | Your local deployment images | No |
-| `dist/`, `dist-private/` | Generated site files | No |
+There are two opening modes: **`direct`** and **`native`**. A third-party service URL can simply be a normal destination. There is no dedicated Bouncy integration or required service account. Native handoff is experimental and still needs real-device verification; see the [compatibility matrix](docs/browser-opening.md).
 
-For the configurable `index.html`, the theme compiler turns JSON into one static stylesheet. Its page styling stays in configuration. The standalone `example.html` deliberately embeds its own fixed styling so it opens independently. See [configuration and styling](docs/configuration.md) for layout, color, typography, border, spacing, animation, and responsive examples.
+## Configure a site
 
-To configure your own `index.html`, copy `config/site.example.json` to `config/site.json` if that file does not already exist. Edit the ignored copy with your name, links, images, and appearance; preserve an existing private configuration. Content is required in full, and `styles` may selectively override the shared theme.
-
-**The real file belongs at `config/site.json`, next to `config/site.example.json`.** `site.json` is ignored by Git; the example file is committed. On a fresh clone, create the local file without overwriting existing settings:
+The JavaScript builder chooses `SITE_CONFIG_JSON` when set, otherwise `config/site.json` if present, otherwise `config/site.example.json`. A malformed or unreadable real config fails instead of silently publishing the sample.
 
 ```sh
 cp -n config/site.example.json config/site.json
-```
-
-```sh
-npm run build
+# Edit config/site.json, then:
 npm run dev
 ```
 
-Open `dist/index.html` directly, or use the local server. Your local settings are now selected automatically. For deployments that must fail when customized input is missing, the existing `build:private` / `dev:private` commands remain available and use `dist-private/`. On Cloudflare, this strict mode requires the production build variable and the configured production branch because Git does not upload your real config.
+**Keep the real file at `config/site.json`, beside the sample. It is Git-ignored.** `dist/`, `dist-private/`, and `.private/` also stay out of Git. Keep the committed sample and public screenshots neutral. Source privacy does not hide the public deployed page's identity, links, or browser-visible settings.
 
-Commit the example HTML, sample JSON, theme, template, and application code. Keep your real config and generated `index.html` out of Git. Deploy only the selected build output; the root `example.html` is not copied into either deployment automatically.
+The complete [sample config](config/site.example.json) and [editor schema](config/site.schema.json) document the format. For example, merge this feature block into a complete site config:
+
+```json
+{
+  "browserOpening": {
+    "mode": "native",
+    "autoOpen": false,
+    "showManual": true,
+    "iosStrategy": "instagram",
+    "androidPackage": "com.android.chrome",
+    "fallbackDelayMs": 1800
+  },
+  "ageAcknowledgment": { "enabled": false, "remember": "session" }
+}
+```
+
+Old configs without feature blocks retain direct navigation. Each link can set `openingMode` to `inherit`, `direct`, or `native` and a stable, non-sensitive `id`. Full details: [content and styling](docs/configuration.md), [browser opening](docs/browser-opening.md), and [analytics](docs/analytics.md).
+
+## Architecture
+
+```mermaid
+flowchart LR
+  A[Sample or private build input] --> B[Validate and normalize]
+  C[Theme and template] --> D[Shared static renderer]
+  B --> D
+  D --> E[HTML, CSS and selected assets]
+  E --> F[Ordinary functional links]
+  E --> G[Optional client modules]
+  G --> H[Native handoff and direct fallback]
+  G --> I[Optional acknowledgment and analytics]
+```
+
+`scripts/render.mjs` owns HTML rendering. `src/client/browser-opening.js` owns pure strategy/URL decisions; `handoff-controller.js` owns attempts, timers, and lifecycle. `app.js` connects them to the DOM. Analytics reports attempts and observations, never assumed external-browser success. Read the [architecture decisions](docs/architecture.md) and [implementation status](docs/implementation-status.md).
 
 ## Cloudflare Pages
 
-Connect this public GitHub repository to Pages. Choose framework **None**, Node.js **22**, and one of these setups:
+Use separate Pages projects connected to this same public repository:
 
-| Site | Build command | Output | Build variables |
+| Deployment | Build command | Output | Input |
 | --- | --- | --- | --- |
-| Public portfolio demo | `npm run build:example` | `dist` | None |
-| Automatic configuration | `npm run build` | `dist` | Optional production-only `SITE_CONFIG_JSON`; otherwise sample |
-| Customized demo | `npm run build:private` | `dist-private` | Production-only `SITE_CONFIG_JSON` |
-| Configured live site | `npm run build:private:production` | `dist-private` | Production-only `SITE_CONFIG_JSON` |
+| Public demo | `npm run build:example` | `dist` | Neutral sample only |
+| Automatic selection | `npm run build` | `dist` | Optional `SITE_CONFIG_JSON`; sample if absent in Git checkout |
+| Customized preview | `npm run build:private` | `dist-private` | Production-scoped `SITE_CONFIG_JSON` |
+| Configured live site | `npm run build:private:production` | `dist-private` | Same input with real domain and placeholders disabled |
 
-Use separate Pages projects for the public demo and customized deployment. Keep private input out of public repository variables, build logs, issues, screenshots, and CI artifacts. Disable preview builds on the private project. Full instructions: [Cloudflare setup](docs/cloudflare.md), [security](docs/security.md), and [analytics](docs/analytics.md).
+Choose framework None and Node 22 or newer. Add the custom domain through Pages, supply the real config in the project's encrypted build settings, and keep production input out of untrusted preview builds. Hosting and basic analytics can use the free tier; domain registration remains separate.
 
-**Private configuration means private source inputs.** The rendered name, links, images, colors, and analytics site token are visible on the deployed website. This design does not conceal destinations or prevent someone from associating two sites that share a template. Never put API credentials in display configuration.
+Follow [Cloudflare deployment](docs/cloudflare.md) for domains, HTTPS, multiple projects, and rollback. [Security](docs/security.md) covers WAF, Managed Challenge, optional stronger verification, and in-app browser trade-offs. Security controls never change the page's destinations for reviewers.
 
-## Engineering choices
-
-- No runtime framework, client-side hydration, database, or install-time dependencies.
-- Direct HTTPS links work without JavaScript. The optional analytics beacon is the only visitor script.
-- Automatic config selection for normal builds, an explicit neutral example build, and an optional strict private build in `dist-private/`.
-- Declarative styles support responsive rules and animations while rejecting stylesheet injection and remote CSS loads.
-- Text is escaped, URLs validated, and only referenced image files are copied. Symlinks cannot escape the chosen asset directory.
-- Canonical/Open Graph metadata, a sitemap for configured sites, a real 404 page, CSP, and accessible defaults are generated.
-- Tests cover config isolation, redacted errors, theme overrides, assets, production checks, links, and contrast.
+## Verify and contribute
 
 ```sh
 npm test
+npm run build:example
 npm run check:public
 ```
 
-The publication check audits tracked paths when Git is initialized and checks known source files against local private identity values when available. It is a useful guard, not a complete secret scanner or Git history scrubber. See [publication checks](docs/configuration.md#before-publishing-the-repository).
+For browser integration tests only:
 
-`private: true` in `package.json` prevents accidental npm package publication; it does not make a GitHub repository private. The site has no paid dependencies. Domain registration remains separate from hosting.
-# cloudflare-link-protection
+```sh
+npm ci
+npx playwright install chromium webkit
+npm run test:browser
+npm run screenshots
+```
+
+The [testing guide](docs/testing.md) separates automated evidence from real-device checks. Browser installation, screenshots, and hosted checks are still unverified in this restricted environment. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [MIT license](LICENSE).
+
+`SPEC.md` is being edited separately. Current implementation follows the user's explicit two-mode requirement; its conflicting provider-specific section needs reconciliation by the spec owner before release.
