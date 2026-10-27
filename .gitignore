@@ -10,6 +10,8 @@ coverage/
 .private/
 site.json
 site.config.json
+site.json.*
+site.config.json.*
 .wrangler/
 .dev.vars
 .dev.vars.*
@@ -21,6 +23,10 @@ site.config.json
 .aws/
 .agents/
 .codex/
+*.pem
+*.key
+*.p12
+*.pfx
 .DS_Store
 Thumbs.db
 
@@ -28,3 +34,4 @@ Thumbs.db
 playwright-report/
 test-results/
 browser-output/
+playwright/.auth/

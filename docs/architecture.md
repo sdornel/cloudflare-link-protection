@@ -2,7 +2,7 @@
 
 ## Static generation and progressive enhancement
 
-A dependency-free Node build validates configuration, compiles JSON styling, renders HTML, and copies only referenced images. The static output works on Pages or an ordinary static host. There is no database, runtime server, framework hydration, or dependency installation in the production build.
+A dependency-free Node build validates configuration, compiles JSON styling, renders HTML, and copies only referenced images. The static output works on Workers Static Assets, Pages, or an ordinary static host. There is no database, application server, or framework hydration. Generation needs no installed packages; Workers deployment uses the pinned Wrangler development dependency.
 
 The client never fetches `site.json`. The renderer emits an explicit allowlist of public feature settings in escaped inert JSON. Arbitrary operator metadata stays out of the output. Real anchor hrefs exist before JavaScript executes; an optional module can enhance a click but cannot become the only route to its destination.
 
@@ -20,6 +20,6 @@ Client modules are emitted under a content-hashed directory. Changing any module
 
 ## Source separation
 
-A public sample supports a fresh clone. Ignored local config or a production-only environment variable supplies a deployed identity. An explicit example build ignores both private inputs. Separate Pages projects consume the same application source with separate settings. This separates source data; it does not make rendered information secret.
+A public sample supports a fresh clone. Ignored local config or a production-only environment variable supplies a deployed identity. An explicit example build ignores both private inputs. Separate Workers consume the same application source with separate settings. This separates source data; it does not make rendered information secret.
 
 The public audit checks selected source roots and Git paths when available. It permits the generic supported platform name as a link label, while still checking private identities, exact destination URLs, and operator exclusion terms. It is not an image-content scanner or a replacement for reviewing Git history and screenshots.

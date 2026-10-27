@@ -1,27 +1,51 @@
 # Implementation and verification status
 
-This file records the implementation while another contributor edits `SPEC.md`. It does not rewrite or claim ownership of that specification.
+Updated 2026-10-27. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
 
 ## Implemented
 
-- Existing static build, automatic local/sample config selection, strict production checks, private-input boundaries, and JSON styling remain intact.
-- Native/direct modes, per-link overrides, iOS experimental schemes, Android intents with direct fallback, manual assistance, and bounded automatic iOS page handoff.
-- Shared renderer, explicit standalone neutral example refresh, schema/defaults/validation, and content-versioned modules.
-- Optional age acknowledgment and local event telemetry, optional consent-gated GA4 reporting, and existing Cloudflare visit/performance integration.
-- Node regressions, development-only browser tests, neutral screenshot generation, CI configuration, and updated guides.
+- Static rendering, legacy configuration compatibility, separate public/private builds, selective assets, safe public runtime options, and a shared neutral example renderer.
+- Native iOS/Android strategies, direct fallbacks, manual assistance, bounded automatic iOS opening, and reload/return guards.
+- Optional age acknowledgment, local interaction events, consent-gated GA4, and Cloudflare visit/performance integration. GA4 dispatches at most one page view per document across consent changes, including changes while the provider loads.
+- Publication auditing resolves filesystem aliases before comparing Git roots. CI requires Git-index inspection. Private config backups, key bundles, and browser authentication state are ignored and rejected if tracked.
+- Browser integration tests exercise the real app and controls using synthetic builds with generated CSP. Neutral mobile/desktop screenshots are included in README, and an isolated performance command records reproducible lab measurements.
+- The entry animation keeps content visible from its first frame. Its previous zero-opacity start prevented Chromium from reporting a contentful paint in the measured build; the small translation and reduced-motion behavior remain.
+- Workers Static Assets configuration, pinned Wrangler tooling, a deployment dry-run command, and current setup instructions. Private build branch checks support Workers and existing Pages deployments.
 
-## Specification coordination
+## Recorded verification
 
-The user's explicit instruction is native functionality without a dedicated Bouncy integration; service URLs can be ordinary links. The concurrently edited specification currently introduces a provider-specific mode and says implementation should stop. Those statements belong to the other instance's spec-only task and conflict with the user's instructions to this implementation session. This code retains `native` and `direct`, and application work resumed with explicit user authorization. The spec owner should reconcile these sections before release. No edits to `SPEC.md` were made by this implementation session.
+| Check | Result |
+| --- | --- |
+| Node tests on macOS / Node 22.15.1 | 42 passed, no failures or skips |
+| Node tests in Linux / official Node 22 Bookworm container | 42 passed, no failures or skips; repository mounted read-only and container networking disabled |
+| Chromium and mobile WebKit integration | 20 passed, including real CTA/manual UI wiring, acknowledgment, loop guards, simulated return, and consent |
+| Dependency installation | `npm ci --ignore-scripts --offline --no-audit --no-fund` passed with pinned Playwright and Wrangler dependencies |
+| Neutral build and standalone example | Build passed; `example.html` matches the shared neutral renderer |
+| Workers deployment | Wrangler 4.154.0 dry run passed; local server verified HTML, CSS, security headers, cache policy, and missing/private-config paths returning 404 |
+| Hosted neutral demo | [Public Worker](https://cloudflare-link-protection.skdornel.workers.dev/) checked on 2026-10-27: HTTPS 200, security headers, CSS/cache policy, three sample hrefs, and working dropdown; Chromium with JavaScript enabled and disabled reported no browser errors |
+| Hosted missing URL | HTTP 404 with security headers, but an empty body even for a browser-style navigation; custom 404 rendering is verified locally and awaits deployment of `wrangler.jsonc` |
+| Public-source audit | Passed with Git-index inspection; no local production config was available for comparison |
+| Screenshots | Neutral 390×844 mobile and 1280×900 desktop Chromium captures generated and visually reviewed |
+| CI configuration | Node 22/24 unit/build checks on macOS and Ubuntu; Workers dry run, Chromium/WebKit, screenshots, and performance checks on Ubuntu |
 
-## Verification limits
+The CI matrix is configured; these local results do not claim that a remote Actions run has completed. Linux coverage was executed in Docker; WSL itself was not separately tested. The path fix uses filesystem canonicalization without OS-specific prefix substitutions.
 
-The Node suite passed 37 tests with one explicit environment-related skip. Public-source checks passed. The Node Git subprocess test skips in this sandbox; direct shell Git inspection remains possible. Browser package installation failed because registry DNS is blocked, and the preview server failed with `listen EPERM`. Consequently Playwright, browser screenshots, LCP/CLS, real-device app handoff, live Cloudflare headers/challenges, and a hosted demo have not been verified here.
+## Performance evidence
 
-Playwright is pinned as a development-only dependency. The lockfile graph was assembled from the published package/upstream tag because npm could not download it; the two upstream packages lack recorded integrity hashes. Run `npm install --package-lock-only` on a network-enabled host, review the integrity entries, then run the browser suite. The production build remains dependency-free.
+`npm run check:performance` measured five fresh Chromium 156.0.8078.4 sessions on macOS 25.2.0 arm64 / Apple M3 Pro / Node 22.15.1. The profile uses a 390×844 viewport, device scale factor 1, 4× CPU slowdown, 150 ms latency, 1.6 Mbps down / 0.75 Mbps up, and disabled cache. Motion is enabled; the loopback server sends uncompressed HTTP. Observations continue for three seconds after load.
 
-Do not describe the site as production-device-verified until the manual checklist is completed. No conversion improvements, successful handoff rates, or live deployment are claimed.
+- LCP samples: **500, 404, 404, 392, 416 ms**; median **404 ms**, below the 2.5-second lab target.
+- Maximum CLS: **0** across all five runs, below 0.1.
+- Combined first-party HTML/CSS/JS: **12,803 gzip bytes**, including the 404 page, below 50,000 bytes.
 
-## Recorded checks
+The command writes raw samples, versions, and conditions to ignored `browser-output/performance.json`. This is a local lab measurement, not a deployed-site result or a field percentile. See [testing](testing.md#performance) for reproduction.
 
-The neutral build measured 29,482 first-party bytes across 8 files, or 10,540 bytes when each response is gzip-compressed separately. This is a size measurement, not an LCP/CLS result. The example snapshot matched the shared renderer, both configured output modes built, and direct Git checks confirmed real config/output remain ignored. An offline `npm ci --dry-run` accepted the pinned three-package development graph; it did not download or execute browser packages. The JSON schema was checked with a Draft 2020-12 validator against both sample and ignored local config.
+## Remaining external release checks
+
+- Deploy the current local changes to the existing Worker. The live demo still serves the earlier Pages setup guide; the updated Worker guide and Wrangler configuration are local changes awaiting publication.
+- After deployment, confirm missing URLs render the custom 404 page as well as returning HTTP 404.
+- Verify custom-domain DNS/certificates, optional analytics, and challenge behavior separately from `workers.dev`.
+- Record physical iOS/Android Instagram device, OS, and app versions, dates, prompt cancellation, exact destination URLs, and return behavior. Simulated scheme launches and lifecycle events do not establish real OS handoff or BFCache compatibility.
+- Complete manual screen-reader, browser zoom/large-text, custom-theme, and real-device usability checks. Automated layout, focus, contrast, and reduced-motion rules do not replace that review.
+
+Use the [deployment guide](cloudflare.md#completing-the-first-hosted-demo-release) and [device checklist](testing.md#real-device-checklist). No conversion gains or successful external-browser loads are inferred from page visibility.

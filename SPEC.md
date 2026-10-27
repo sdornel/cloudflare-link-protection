@@ -1,18 +1,18 @@
 # Static Profile Platform — authoritative specification
 
-**Status:** Expanded specification for review; planned behavior is not a claim of implementation or verification.
+**Status:** Implementation contract, updated 2026-10-27. Direct/native modes are in scope; Bouncy integration is deferred. See `docs/implementation-status.md` for measured verification and remaining release work.
 
 **Research and code inspection:** 2026-10-26.
 
 **Inspected baseline:** `caadb10` and the working tree at the start of this expansion. Baseline descriptions below refer to that inspection.
 
-**Workflow:** This update expands the existing specification only. Do not implement features, restructure files, install dependencies, change deployment settings, or modify application code as part of this task.
+**Workflow:** Keep implementation, tests, schema, and guides aligned with this contract. Record completed checks separately from device and deployment evidence.
 
-This document is the implementation reference. Keep it synchronized with architectural decisions and distinguish implemented behavior, proposed behavior, and device-verified behavior. Existing documentation describes the earlier application until implementation updates it.
+This document is the implementation reference. Keep it synchronized with architectural decisions and distinguish implemented behavior, proposed behavior, and device-verified behavior. The status guide distinguishes implemented behavior from remaining release checks.
 
 ## 1. Objective and boundaries
 
-Build an open-source, self-hosted creator links platform suitable for production use and a public software-engineering portfolio. Preserve the polished landing page and native, best-effort external-browser opening from Instagram's in-app browser, with Bouncy.ai as an optional provider. It must support a publicly accessible neutral demo and multiple independently configured production creator websites from **one public GitHub repository**. Production readiness requires the documented validation and deployment checks; this specification does not claim the planned features are already implemented or verified.
+Build an open-source, self-hosted creator links platform suitable for production use and a public software-engineering portfolio. Preserve the polished landing page and native, best-effort external-browser opening from Instagram's in-app browser. It must support a publicly accessible neutral demo and multiple independently configured production creator websites from **one public GitHub repository**. Production readiness requires the documented validation and deployment checks; this specification does not claim the planned features are already implemented or verified.
 
 Priority order:
 
@@ -25,10 +25,10 @@ Priority order:
 
 ### Scope decisions
 
-- Preserve native external-browser handoff in our own code and add optional Bouncy.ai handoff using operator-supplied HTTPS links. The primary website must remain fully functional without Bouncy, its account, or any paid subscription; no Bouncy SDK, API integration, or link-provisioning backend is required.
-- Supported browser-opening modes are `direct`, `native`, and optional `bouncy`. The current expansion supersedes the earlier Bouncy exclusion and two-mode restriction; existing direct/native configurations keep their meaning.
+- Preserve native external-browser handoff in our own code. Dedicated provider integration is deferred; no third-party account, paid subscription, SDK, or backend is required.
+- Supported browser-opening modes are `direct` and `native`. Existing configurations retain their meaning. Ordinary third-party HTTPS destinations remain ordinary links.
 - Use static HTML/CSS and small JavaScript modules, with a dependency-free Node.js build. No required server, database, runtime framework, login, dashboard, or link-shortening service.
-- Use Cloudflare Pages Free as the documented hosting target, without making the generated output Cloudflare-dependent. Domain registration is a separate cost.
+- Use Cloudflare Workers Static Assets on Free as the documented hosting target, without making the generated output Cloudflare-dependent. Domain registration is a separate cost.
 - Keep the reusable application, configuration schema, neutral examples, documentation, and deployment tooling together in the public repository. A separate private repository needs a concrete, documented technical or security justification; none is currently required.
 - Keep deployment identity, real destinations, images, production configuration, and operating notes out of GitHub. The resulting public website necessarily exposes displayed content and destinations.
 - Technical documentation may name supported browsers and platforms. Such compatibility references are distinct from deployment-specific names, handles, URLs, labels, or imagery.
@@ -40,10 +40,10 @@ Priority order:
 | Category | Requirement |
 | --- | --- |
 | Required platform | Complete static links page; backward-compatible configuration; independently branded deployments; one shared renderer; accessible, responsive, performant defaults; public demo and portfolio documentation |
-| Required hosting support | Cloudflare Pages Free deployment, custom domains, HTTPS, and documented WAF/Managed Challenge configuration separate from application behavior |
-| Configurable enhancements | Native and Bouncy handoff, age acknowledgment, Cloudflare analytics, and GA4 can each be disabled; their specified validation and fallbacks remain required when supported |
+| Required hosting support | Cloudflare Workers Static Assets on Free deployment, custom domains, HTTPS, and documented WAF/Managed Challenge configuration separate from application behavior |
+| Configurable enhancements | Native handoff, age acknowledgment, Cloudflare analytics, and GA4 can each be disabled; their specified validation and fallbacks remain required when supported |
 | Optional operations | Staging sites, third-party accounts, analytics collection, stronger browser verification, and paid hosting/provider upgrades are not prerequisites for the core website |
-| Experimental behavior | Automatic native iOS handoff and undocumented schemes remain opt-in and device-dependent; neither native nor Bouncy handoff guarantees browser escape or conversion gains |
+| Experimental behavior | Automatic native iOS handoff and undocumented schemes remain opt-in and device-dependent; native handoff does not guarantee browser escape or conversion gains |
 
 Optional means operators choose whether to enable the enhancement. The core page and direct links must work with every enhancement disabled. The public demo and production sites use the same implementation; their content and enabled features come from configuration.
 
@@ -55,7 +55,7 @@ Optional means operators choose whether to enable the enhancement. The core page
 | Config selection | Environment JSON, otherwise ignored local `config/site.json`, otherwise committed sample | Preserve exact precedence and missing-file-only fallback |
 | Theme | `config/theme.json` contains CSS variables, rules, media queries, and keyframes; per-site overrides merge recursively | Extend the same system to handoff, acknowledgment, and optional analytics controls |
 | Example | Root `example.html` is a standalone neutral page with embedded CSS and no runtime config request | Keep it usable offline; add an explicit neutral-only regeneration command using the shared renderer |
-| Links | Same-tab navigation, configured labels/icons, optional secondary links, working placeholders | Retain direct `href` values; optionally enhance eligible interactions with native or Bouncy handoff |
+| Links | Same-tab navigation, configured labels/icons, optional secondary links, working placeholders | Retain direct `href` values; optionally enhance eligible interactions with native handoff |
 | Browser opening | None | Add detection, platform strategies, loop protection, manual assistance, and honest fallback events |
 | Age acknowledgment | None | Optional lightweight self-attestation, off by default |
 | Analytics | Optional Cloudflare beacon; no custom event collection | Add local event interface and optional GA4 adapter; keep Cloudflare visits/performance support |
@@ -81,12 +81,12 @@ The earlier specification records baseline verification of **18 tests discovered
 
 Use progressive enhancement: the HTML document is a complete links page before visitor JavaScript runs. The browser-opening module decides how to attempt a navigation; it does not own profile rendering or invent destinations.
 
-The existing `config/site.example.json`, ignored `config/site.json`, and `config/theme.json` remain the configuration foundation. In the inspected baseline, `scripts/build.mjs` renders `src/index.html`; root `example.html` is a separately maintained static snapshot with embedded CSS. The proposed shared renderer and explicit neutral snapshot regeneration remove that maintenance duplication while retaining offline use. No separate demo application, production template, or site-specific source fork is needed. The layout below documents proposed restructuring only; it does not authorize changes in this task.
+The existing `config/site.example.json`, ignored `config/site.json`, and `config/theme.json` remain the configuration foundation. `scripts/build.mjs` renders `src/index.html`; root `example.html` is regenerated explicitly from the shared renderer with embedded CSS for offline use. No separate demo application, production template, or site-specific source fork is needed. The layout below identifies the shared implementation responsibilities.
 
 ```text
 config/
   site.example.json             committed neutral example
-  site.schema.json              planned editor schema for the documented config
+  site.schema.json              editor schema for the documented config
   site.json                     ignored local deployment config
   theme.json                    committed shared styling
 src/
@@ -101,29 +101,29 @@ src/
 scripts/
   config.mjs                    selection, normalization, and validation
   theme.mjs                     JSON-to-CSS compiler
-  render.mjs                    planned reusable pure HTML renderer
+  render.mjs                    reusable pure HTML renderer
   build.mjs                     output orchestration and asset copying
-  example.mjs                   planned explicit neutral example regeneration
+  example.mjs                   explicit neutral example regeneration
   serve.mjs                     local preview
   check-public.mjs              publication boundary audit
 public/
   _headers                      baseline response policy
   images/                       public demo assets only
 docs/
-  architecture.md               planned rendering, configuration, and deployment boundaries
+  architecture.md               rendering, configuration, and deployment boundaries
   configuration.md
-  browser-opening.md            planned native/Bouncy compatibility and limitations
+  browser-opening.md            native compatibility and limitations
   analytics.md
   cloudflare.md
   security.md
-  testing.md                    planned automated/manual verification guide
-  images/                       planned neutral browser screenshots
+  testing.md                    automated/manual verification guide
+  images/                       neutral browser screenshots
 tests/                          unit and build integration tests
-.github/workflows/ci.yml         planned public-input-only checks
+.github/workflows/ci.yml         public-input-only checks
 example.html                    committed standalone neutral snapshot
 SPEC.md                         this document
 README.md                       product and contributor entry point
-LICENSE                         planned MIT license for reusable source
+LICENSE                         MIT license for reusable source
 .private/                       ignored assets and operating notes
 dist/                           ignored normal/example build output
 dist-private/                   ignored strict private build output
@@ -154,9 +154,9 @@ Do not serve or copy `site.json`, private notes, arbitrary extra fields, or the 
 | `npm run build:example` | Sample only; ignores real inputs even if malformed | `dist/` |
 | `npm run build:private` | Environment input or local real config; no sample fallback | `dist-private/` |
 | `npm run build:private:production` | Strict private input plus production validation | `dist-private/` |
-| `npm run example:refresh` (planned) | Sample, shared template, and theme only | Root `example.html` |
+| `npm run example:refresh` | Sample, shared template, and theme only | Root `example.html` |
 
-Only `ENOENT` for the local file permits normal-build fallback. An explicitly set empty or invalid environment variable is an error. On Cloudflare, customized builds must satisfy `CF_PAGES_BRANCH === (SITE_PRODUCTION_BRANCH || 'main')`. Strict private Cloudflare builds require the environment input rather than a local-file fallback.
+Only `ENOENT` for the local file permits normal-build fallback. An explicitly set empty or invalid environment variable is an error. On Cloudflare, customized builds must match `(SITE_PRODUCTION_BRANCH || 'main')` using `WORKERS_CI_BRANCH` for Workers or `CF_PAGES_BRANCH` for existing Pages builds. Strict private Cloudflare builds require the environment input rather than a local-file fallback.
 
 ### Existing fields
 
@@ -173,16 +173,16 @@ Only `ENOENT` for the local file permits normal-build fallback. An explicitly se
 | `styles` | Partial recursive overrides to shared theme |
 | `analytics.cloudflareToken` | Empty or valid public site beacon identifier; never an account API token |
 
-All enabled destinations must be complete HTTPS URLs without credentials. Preserve the URL's path, query, and fragment. `url` remains the direct destination and required fallback even when a separate Bouncy URL is supplied. Disabled links still need structurally valid feature options; do not let disabling a link hide malformed strategy settings.
+All enabled destinations must be complete HTTPS URLs without credentials. Preserve the URL's path, query, and fragment. `url` remains the direct destination and required fallback. Disabled links still need structurally valid feature options; do not let disabling a link hide malformed strategy settings.
 
-### Planned optional fields and defaults
+### Optional fields and defaults
 
 An omitted feature block preserves the previous direct-link behavior. New example config should explicitly demonstrate `native` with automatic opening disabled. Defaults are normalized centrally, never separately in several client modules.
 
 | Field | Values / default | Meaning |
 | --- | --- | --- |
 | `schemaVersion` | Optional `1` for legacy; `2` for the expanded schema | Reject unsupported explicit versions; document migration |
-| `browserOpening.mode` | `direct`, `native`, or `bouncy`; omitted block means `direct` | Global behavior; Bouncy use is opt-in |
+| `browserOpening.mode` | `direct` or `native`; omitted block means `direct` | Global behavior; native handoff is opt-in |
 | `browserOpening.autoOpen` | Boolean, default `false` | Native mode only: allow a bounded experimental attempt to open this landing page externally |
 | `browserOpening.showManual` | Boolean, default `true` in native mode | Offer an unobtrusive Open in Browser control in supported in-app contexts |
 | `browserOpening.iosStrategy` | `instagram` or `safari`; default `instagram` | Select one experimental iOS strategy; no automatic cascade |
@@ -190,8 +190,7 @@ An omitted feature block preserves the previous direct-link behavior. New exampl
 | `browserOpening.fallbackDelayMs` | Integer 800–5000; default `1800` | Time before showing unconfirmed-attempt assistance; never a success threshold |
 | `browserOpening.labels` | Optional plain-text labels with built-in defaults | Manual open, retry, continue here, and device instructions |
 | Link `id` | Optional unique `[a-z0-9_-]`, 1–40 characters | Stable non-sensitive event identifier; deterministic positional ID if absent |
-| Link `openingMode` | `inherit`, `direct`, `native`, `bouncy`; default `inherit` | Per-destination strategy override |
-| Link `bouncyUrl` | Optional complete HTTPS URL; absent by default | Operator-created Bouncy handoff link for the same direct destination; used only in Bouncy mode |
+| Link `openingMode` | `inherit`, `direct`, `native`; default `inherit` | Per-destination strategy override |
 | `ageAcknowledgment.enabled` | Boolean, default `false` | Optional 18+ self-attestation |
 | `ageAcknowledgment.message` | Plain text with a neutral default | Visible explanation |
 | `ageAcknowledgment.remember` | `session` or `none`; default `session` | Store only the acknowledgment state, if storage works |
@@ -201,7 +200,7 @@ An omitted feature block preserves the previous direct-link behavior. New exampl
 
 The schema and executable validator must agree. Reject wrong types, unknown enum values, invalid IDs, duplicate IDs, non-finite/range-invalid timeouts, and package/scheme injection. Extra legacy metadata may remain accepted for compatibility but must never be serialized through a spread of the source config.
 
-Resolve a link's mode from its override, then the global mode. If Bouncy mode is selected without a `bouncyUrl`, use the direct `url`; do not create a provider link or require an upgrade. A supplied malformed or credential-bearing `bouncyUrl` is a configuration error, not a reason to silently change destinations. Native-only settings have no effect in direct or Bouncy mode, allowing operators to switch modes without deleting their native preferences.
+Resolve a link's mode from its override, then the global mode. Native-only settings have no effect in direct mode, allowing operators to switch modes without deleting their native preferences. Unknown modes fail validation.
 
 Illustrative fragment, to be merged into a complete site config:
 
@@ -240,12 +239,12 @@ Keep all deployment-specific styling in the ignored real config. All UI styling,
 | Class | Examples | Storage and exposure |
 | --- | --- | --- |
 | Public reusable source | Templates, scripts, schema, neutral config/assets, default theme, docs, deployment instructions | Committed to the single public repository; suitable for public CI and portfolio screenshots |
-| Deployment-specific settings | Branding, real direct/Bouncy URLs, theme overrides, domain, feature flags, public analytics identifiers | Ignored local config or project-scoped build settings; only intended display/runtime values enter the generated site |
+| Deployment-specific settings | Branding, real destination URLs, theme overrides, domain, feature flags, public analytics identifiers | Ignored local config or project-scoped build settings; only intended display/runtime values enter the generated site |
 | Actual secrets | Cloudflare API tokens, GitHub credentials, private keys, service API secrets | Hosting/CI secret storage or protected local deployment environment only; never committed, placed in site config, embedded in output, or included in public logs/artifacts |
 
-Client-visible values are public even when injected through encrypted build variables. Visitors can inspect HTML, scripts, network requests, images, direct destinations, and Bouncy URLs. Cloudflare beacon tokens and GA4 measurement IDs are public identifiers, not account credentials. Keeping production settings out of Git protects source separation; it does not make their rendered values secret. Deployment credentials belong to deployment tooling, never visitor-side code or the renderer's public runtime options.
+Client-visible values are public even when injected through encrypted build variables. Visitors can inspect HTML, scripts, network requests, images and direct destinations. Cloudflare beacon tokens and GA4 measurement IDs are public identifiers, not account credentials. Keeping production settings out of Git protects source separation; it does not make their rendered values secret. Deployment credentials belong to deployment tooling, never visitor-side code or the renderer's public runtime options.
 
-Document which optional providers receive visitor requests, what telemetry is enabled, and the operator's consent/privacy choices. Disabling first-party analytics does not prevent Cloudflare, an external image host, Bouncy after a click, or a destination site from processing requests. Do not add hidden provider calls, tracking parameters, or prefetches for disabled integrations.
+Document which optional providers receive visitor requests, what telemetry is enabled, and the operator's consent/privacy choices. Disabling first-party analytics does not prevent Cloudflare, an external image host, or a destination site from processing requests. Do not add hidden provider calls, tracking parameters, or prefetches for disabled integrations.
 
 ## 5. Browser-opening behavior
 
@@ -315,20 +314,9 @@ After an unconfirmed attempt, show inline assistance near the affected controls:
 
 Use polite live-region status text, keyboard-operable controls, and a dismiss action. Keep the profile and links visible; avoid full-screen conversion blockers and repeated prompts. Do not claim “opened successfully” based on timeouts, focus changes, visibility, or an API call returning without throwing.
 
-### 5.6 Optional Bouncy.ai handoff
+### 5.6 Deferred provider integration
 
-Bouncy is a URL-based external-browser handoff provider, selected through the same configuration and rendering path as direct/native behavior. The operator creates any provider link outside this application and supplies `bouncyUrl` alongside the required direct `url`. Do not implement account management, a provider API, a bundled SDK, or a backend proxy. An ordinary service URL in a legacy `url` remains an ordinary link; do not reinterpret it as a configured Bouncy integration by hostname alone.
-
-- A normal unmodified tap on a Bouncy-enabled CTA in a recognized Instagram mobile context may navigate to the configured Bouncy HTTPS URL. Make provider use clear and keep a visible direct Continue here link available before departure; its target is always the original direct URL.
-- Keep the main anchor's direct `href`. JavaScript unavailable, unsupported/uncertain context, absent provider URL, disabled integration, or initialization failure means ordinary direct navigation. Normal browsers and modified clicks retain ordinary link behavior.
-- Bouncy applies to configured outbound CTAs. It does not replace the landing page, change the public bio URL, or participate in automatic page-entry handoff. Do not chain native schemes and Bouncy attempts for one action.
-- If a launch fails locally, retain direct navigation and manual browser-menu instructions. After navigation leaves this site, it cannot reliably detect a provider outage, expired link, quota limit, or the final destination's load. Returning visitors must be able to choose the direct link; do not promise automatic recovery from a remote failure or infer success from a timeout.
-- Preserve supplied URLs without inventing provider query parameters or transmitting the landing page's query. The operator must verify the provider link reaches the same intended destination, including necessary query/fragment values. The static build cannot prove that mapping or prevent a provider-side destination from changing later.
-- No paid Bouncy plan is required. Missing access to a free provider link must leave the full direct/native experience available, with no paywall or setup blocker in this application. Public samples and automated tests use synthetic values and need no live provider account.
-
-As checked on 2026-10-26, Bouncy's [own setup guide](https://blog.bouncy.ai/blog/create-bouncy-link-instagram-bio/) describes a free account with one link on `bouncy.ai` and a Conservative mode; extra domain choices, behavior modes, and analytics are paid features. These are vendor terms that may change, not platform dependencies or tested compatibility claims. Do not require one Bouncy link per CTA or deployment when the free allowance cannot cover them.
-
-Document the trade-offs: leaving Instagram may improve access to saved logins or payment features, but an extra redirect, provider branding, prompts, added taps, changed cookie storage, or a provider outage can increase friction and reduce conversions. Device, OS, Instagram version, and provider behavior determine compatibility; no universal browser escape or conversion uplift is promised. Shortened links and redirect chains may also face platform-policy restrictions or reputation filtering. Neither Bouncy nor native handoff may conceal the destination/content from reviewers, evade moderation, or be presented as a guarantee against blocking. Document provider request/analytics exposure even when this site's own analytics is disabled.
+Dedicated Bouncy support is deferred. Do not add a `bouncy` mode, alternate provider URL, SDK, account requirement, or provider-specific UI. An operator may use an ordinary HTTPS service URL as a direct destination. Reopening dedicated integration requires a separate scope decision, fallback design, and verification plan.
 
 ## 6. Landing-page experience and optional acknowledgment
 
@@ -343,7 +331,7 @@ When enabled and JavaScript works, defer enhanced outbound actions until acknowl
 ### Example policy
 
 - Standard builds leave root `example.html` untouched.
-- A planned `example:refresh` command renders only the neutral sample with the shared template/theme, embedding the CSS for direct disk opening.
+- The `example:refresh` command renders only the neutral sample with the shared template/theme, embedding the CSS for direct disk opening.
 - The standalone snapshot demonstrates layout and functional ordinary links without runtime config, analytics, or an asset-loading requirement. It is not the mobile-handoff test surface.
 - `npm run build:example` produces the full served demonstration using the same renderer and client modules as production. Use that build for browser interactions, screenshots, and device tests.
 - Neither path may read real configuration or include private runtime values. Test this with poisoned environment/local inputs.
@@ -358,8 +346,8 @@ Expose a documented `profile:analytics` CustomEvent containing a small allowlist
 | --- | --- |
 | `landing_view` | Client initialization on a visible landing page |
 | `outbound_click` | Visitor activates a configured CTA |
-| `browser_strategy` | Effective direct/native/Bouncy mechanism selected for an action |
-| `handoff_attempt` | A native scheme launch or Bouncy HTTPS navigation was attempted, with automatic/manual/CTA trigger |
+| `browser_strategy` | Effective direct/native mechanism selected for an action |
+| `handoff_attempt` | A native scheme launch was attempted, with automatic/manual/CTA trigger |
 | `handoff_deferred` | Automatic attempt was not permitted; a gesture is needed |
 | `handoff_page_hidden` | Page visibility/navigation observation, not confirmed success |
 | `handoff_unconfirmed` | Wait interval elapsed without a reliable observable departure |
@@ -383,17 +371,17 @@ Cap any queue and isolate adapter exceptions. GA4, blockers, offline networks, a
 | --- | --- | --- | --- |
 | Local demo | `build:example` / root standalone example | Committed neutral sample | Suitable for public screenshots |
 | Local configured site | Normal `build` / `dev` | Ignored local `site.json` | Generated files stay ignored |
-| Public hosted demo | Separate Pages project, `build:example`, output `dist` | No private variables | Public portfolio and normal preview builds |
-| Production sites A, B, … | Same repo and renderer, one Pages project per site, strict production build | Each project's own production-scoped `SITE_CONFIG_JSON` | Public rendered sites; inputs remain outside GitHub and isolated from each other |
-| Optional staging | Separate Pages project | Synthetic sample or its own isolated input | Explicit hostname, analytics ID, and preview policy |
+| Public hosted demo | Separate Worker, `build`, output `dist` | No build variables or local config; selects the neutral sample | Public portfolio and normal preview builds |
+| Production sites A, B, … | Same repo and renderer, one Worker per site, strict production build | Each project's own production-scoped `SITE_CONFIG_JSON` | Public rendered sites; inputs remain outside GitHub and isolated from each other |
+| Optional staging | Separate Worker | Synthetic sample or its own isolated input | Explicit hostname, analytics ID, and preview policy |
 
 Use one public repository by default. A second private repository may be considered only for a concrete technical or security need that cannot be met by isolated deployment settings and the existing build/upload workflow; record that justification before changing the architecture. Private production configuration alone is not such a justification.
 
-Each Pages project has its own branding, link set/order, theme, enabled features, domain, analytics settings, build variables, and release/rollback history. Changing these settings requires configuration and a rebuild, never edits to application source or a per-site code branch. Build only the selected site's assets and public options; no generated site may contain another site's configuration. Multiple domains on one Pages project are aliases for that output, not independently configured websites. A staging branch can set `SITE_PRODUCTION_BRANCH` explicitly for that project. Never make sensitive build variables available to untrusted pull-request code.
+Each Worker has its own branding, link set/order, theme, enabled features, domain, analytics settings, build variables, and release/rollback history. Changing these settings requires configuration and a rebuild, never edits to application source or a per-site code branch. Build only the selected site's assets and public options; no generated site may contain another site's configuration. Multiple domains on one Worker are aliases for that output, not independently configured websites. A staging branch can set `SITE_PRODUCTION_BRANCH` explicitly for that project. Never make sensitive build variables available to untrusted pull-request code.
 
 The existing environment/local/sample selection is sufficient for independent builds. Local operators can supply a different `SITE_CONFIG_JSON` for each invocation; ensure each generated output is deployed to its intended project before reusing the output directory. Named local profiles, a tenant database, a hostname-driven runtime config registry, and separate application packages are not required. Shared code updates may build several connected projects, but one site's config change or rollback must not change another site's settings.
 
-Cloudflare documents multiple Pages projects connected to one repository, currently with a default maximum of five such projects and an increase-request path. Budget for shared build quotas as the demo, staging, and production sites grow. If the connection limit becomes relevant, evaluate a limit increase or separate output uploads from the same source before adding repositories. See [multiple-project support and limits](https://developers.cloudflare.com/pages/configuration/monorepos/).
+Workers can share one repository with isolated build settings and explicit deployment names. Budget for shared build quotas as demo, staging, and production sites grow. See [Workers build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) and [build limits](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/).
 
 Real local settings belong at **`config/site.json`**, beside the example. Git ignores that file, `.private/`, generated folders, environment files, credentials, screenshots of production, and build archives. Use a neutral CI fixture or sample; do not upload production artifacts to public Actions runs.
 
@@ -403,37 +391,36 @@ The source audit must cover newly added client files, schemas, documentation ima
 
 A public GitHub deployment check may expose a production deployment URL. Config isolation is not a guarantee that the repo and live site cannot be associated. Document the option to build locally and upload output if avoiding public deployment links is important; that does not require a second repository.
 
-## 9. Cloudflare Pages and security
+## 9. Cloudflare Workers and security
 
 ### Deployment contract
 
-- Framework: None; Node.js 22 or newer; build/output pairing from section 4.
-- Connect the same GitHub repository to separate demo and production Pages projects.
-- Supply the complete real JSON through the production-scoped build variable `SITE_CONFIG_JSON`; use the dashboard's encrypted value option where available. Verify it reaches the build environment, not only runtime Functions. Never print it.
-- Disable production-project preview deployments or ensure previews receive only neutral inputs and cannot read production variables.
-- Add the domain through Pages Custom domains, then follow its DNS association process; activate HTTPS and verify the final hostname before enabling live metadata.
-- Keep the custom hostname proxied for zone-level WAF controls. The separate `pages.dev` hostname does not inherit the custom zone's WAF rules.
-- Deploy only generated output. Ignored local images are unavailable to Git-backed builds; use publicly readable HTTPS images, initials, or a local build plus upload.
+- Workers Static Assets is the primary hosting target for new projects, following [Cloudflare's recommendation](https://developers.cloudflare.com/pages/). Existing Pages deployments remain compatible.
+- Node.js 22 or newer; build/output pairing from section 4. Pin Wrangler as a development dependency. Keep automatic package installation enabled for deployment.
+- Connect the same GitHub repository to separate demo and production Workers. The neutral Worker uses `npm run build` followed by `npx wrangler deploy`, with build variables and secrets empty; `wrangler.jsonc` selects `dist` and real 404 handling. Cloudflare's default build image supplies a supported Node version.
+- Each customized Worker uses a strict private build and `npx wrangler deploy --assets ./dist-private --name its-worker-name`. Keep names and output directories paired explicitly.
+- Supply real JSON as the encrypted build secret `SITE_CONFIG_JSON` under Builds settings, not runtime variables. Never print it. Restrict Workers receiving private inputs to trusted production-branch builds. The application checks `WORKERS_CI_BRANCH`; existing Pages builds retain `CF_PAGES_BRANCH` checks.
+- Add a custom domain through the Worker's Domains & Routes settings. Workers Custom Domains require an active Cloudflare zone for both apex domains and subdomains. Review existing DNS/mail records before changing nameservers; verify certificate activation and HTTPS before enabling live metadata.
+- Zone-level WAF rules apply to the custom hostname, not the separate `workers.dev` endpoint. Record the final `siteUrl` and test each endpoint separately.
+- Deploy only generated output. Ignored local images are unavailable to Git-backed builds; use HTTPS images, initials, or a local build plus deployment.
 - Keep rollback instructions and verify headers, 404 status, links, and analytics after deployment. Rebuild to apply config changes.
 
-The deployment/custom-domain guide must distinguish apex domains, which require a Cloudflare zone in the same account as the Pages project, from subdomains, which can use a CNAME at another DNS provider. Zone-level WAF controls still require the hostname to use the operator's Cloudflare proxy. Cover nameserver changes without losing existing DNS/mail records, certificate activation/CAA troubleshooting, final `siteUrl`, and the separate public `pages.dev` endpoint. See [Cloudflare's domain requirements](https://developers.cloudflare.com/pages/configuration/custom-domains/).
-
-Primary references: [build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/), [custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/), [branch controls](https://developers.cloudflare.com/pages/configuration/branch-build-controls/), and [encrypted-variable settings](https://developers.cloudflare.com/pages/functions/bindings/#secrets). Dashboard labels and entitlements must be checked when the operational guide is updated.
+Primary references: [build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/), [branch controls](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/), and [headers](https://developers.cloudflare.com/workers/static-assets/headers/). Dashboard labels and entitlements must be checked when the operational guide is updated.
 
 ### Cloudflare Free capabilities and limits
 
-The baseline must fit Pages Free and a Free Cloudflare zone, without paid WAF rules or a Functions backend. Availability below was checked on 2026-10-26; deployment guides must link current primary documentation and recheck limits when updated.
+The baseline must fit Workers Static Assets on Free and a Free Cloudflare zone, without paid WAF rules or a server-side script. Hosting guidance was checked on 2026-10-27; zone-security availability below was checked on 2026-10-26. Deployment guides must link current primary documentation and recheck limits when updated.
 
 | Capability | Free-tier boundary and project use |
 | --- | --- |
-| Static Pages hosting, custom domains, HTTPS | Suitable for the baseline; domain registration/renewal is separate. Current Free limits include 500 builds/month, one concurrent build per account, and 100 custom domains per project. See [Pages limits](https://developers.cloudflare.com/pages/platform/limits/) and [domain/certificate setup](https://developers.cloudflare.com/pages/configuration/custom-domains/). |
+| Static asset hosting, custom domains, HTTPS | Static asset requests are free and unlimited. Deployment builds have separate quotas; domain registration/renewal is separate. See [asset billing and limits](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/), [build limits](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/), and [domain setup](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/). |
 | DDoS protection | Standard automatic, unmetered protection is included on Free; advanced capabilities vary by plan. See [DDoS availability](https://developers.cloudflare.com/ddos-protection/#availability). |
 | Managed WAF rules | The Cloudflare Free Managed Ruleset is enabled by default on Free and is a subset of the broader ruleset. Do not promise the full paid Cloudflare/OWASP rulesets. See [WAF setup](https://developers.cloudflare.com/waf/get-started/). |
 | Custom WAF rules and Managed Challenge | Free permits five custom rules per zone and supports Managed Challenge; regex and the Log action are unavailable. See [custom-rule availability](https://developers.cloudflare.com/waf/custom-rules/#availability). |
 | Browser Integrity Check | Available as a zone control for suspicious request headers; it is not proof of identity or humanity. Review false positives. See [Browser Integrity Check](https://developers.cloudflare.com/waf/tools/browser-integrity-check/). |
 | Bot Fight Mode | Available on Free, with broad domain-wide behavior. Keep optional and test conversion/compatibility effects; paid bot controls are not baseline requirements. See [Free bot features](https://developers.cloudflare.com/bots/plans/free/). |
 
-Pages hosting limits and zone-security entitlements are separate. A Free Pages deployment does not itself configure WAF rules on its custom domain, and those rules do not extend to Bouncy, outbound destinations, or the project's `pages.dev` hostname.
+Workers hosting limits and zone-security entitlements are separate. A static deployment does not itself configure WAF rules on its custom domain, and those rules do not extend to outbound destinations or the Worker's `workers.dev` hostname.
 
 ### Security requirements
 
@@ -463,7 +450,6 @@ The dashboard guide must include an optional hostname-scoped site-wide Managed C
 | Misleading analytics | Attempt/observation terminology; no inferred success |
 | Abusive traffic | Cloudflare zone controls and measured operational rules |
 | Scheme behavior changes | Small replaceable strategies, configuration kill switch, tested direct fallback |
-| Bouncy failure, changed mapping, or plan limits | Required direct URL, visible direct alternative, operator verification, configuration disable switch; no claim of remote failure detection |
 
 ## 10. Compatibility expectations
 
@@ -484,7 +470,6 @@ This is a **planned behavior matrix**, not a list of device-verified claims. Imp
 
 Web pages cannot guarantee which browser becomes active or observe its successful load. App versions, OS updates, default-browser settings, device policy, installed apps, and browser permission prompts can change results independently of this site's release.
 
-Bouncy requires its own observed Instagram iOS/Android results; native-strategy evidence does not validate the provider. Until those checks exist, label Bouncy compatibility unverified. The integration uses direct links in other/uncertain contexts and has no automatic-entry behavior. Include provider unavailability, cancellation, back navigation, and direct fallback in its device checks.
 
 ## 11. Testing and acceptance
 
@@ -497,7 +482,7 @@ Use the existing Node test runner for pure logic and build integration. Add a sm
 | Config | All precedence branches; legacy defaults; invalid enums/types; duplicate IDs; invalid timeout/package; empty env; production branch restrictions |
 | URL construction | HTTPS/no credentials; Unicode; query ordering/repetition; percent encoding; fragments; `#Intent`/semicolon injection; invalid protocols; exact nested fallback target |
 | Detection | Representative iOS/Android Instagram UA; ordinary Safari/Chrome/desktop; iPad desktop UA uncertainty; unknown/missing UA |
-| Strategy | Global and per-link direct/native/Bouncy modes; disabled links; Bouncy URL absent/invalid; legacy service URLs unchanged; direct fallback for unsupported exact URL representation |
+| Strategy | Global and per-link direct/native modes; disabled links; legacy service URLs unchanged; direct fallback for unsupported exact URL representation |
 | Controller | One attempt; pre-launch guard; no timers firing a second navigation; hidden/visible transitions; return/BFCache; blocked storage; marker preservation; cancellation |
 | Navigation | Direct href with JS off; missing client script; modified/middle click; fallback to exact original target; exception before interception |
 | Acknowledgment | Disabled/default; intended action after acknowledgment once; blocked storage; new browser session; no-JS notice |
@@ -505,7 +490,6 @@ Use the existing Node test runner for pure logic and build integration. Add a sm
 | Rendering | Escaping; safe runtime JSON; CSP matches enabled features; local/remote images; selective copying; SEO and real 404 |
 | Demo/privacy | Neutral-only explicit example refresh; private inputs ignored; source template unchanged; no private fields in output unless intended for display |
 | Multiple sites | Same source builds distinct synthetic branding/domains/links/features; no cross-site values or assets; deployment config changes do not rewrite source or the neutral snapshot |
-| Bouncy | No provider requests when disabled; direct href with JS off; visible direct alternative before departure; no native/provider cascade or automatic remote-success claim; no paid account in tests |
 | Accessibility | Keyboard order/focus; live status; reduced motion; contrast; 320px layout; no blocking overlays |
 
 CI must run on public/synthetic inputs without production secrets, test at the minimum supported Node version, build the neutral demo, check reproducibility and source boundaries, and keep artifacts neutral. Required checks must fail rather than silently skip on a capable CI host. Local capability-related skips must be explicit.
@@ -515,7 +499,7 @@ CI must run on public/synthetic inputs without production secrets, test at the m
 Record device model, OS, app/browser version, date, configuration, and expected/observed result for each release affecting handoff:
 
 1. Open the custom-domain page from a real Instagram profile/story on iPhone and Android. Confirm the landing content appears before any optional attempt.
-2. Test direct mode, native CTA tap, manual page opening, and opt-in automatic behavior separately. If Bouncy is configured, test its CTA handoff and direct alternative independently, including provider failure/expired-link behavior where reproducible.
+2. Test direct mode, native CTA tap, manual page opening, and opt-in automatic behavior separately.
 3. Accept and cancel system/app prompts; test browser absent/disabled, alternate default browser, repeated taps, and slow return to the page.
 4. Verify complete query/fragment values at the destination, including encoded and repeated parameters. Use synthetic values only.
 5. Return with back navigation, reload, restore the page, open another tab, and block storage. Confirm no loop or spontaneous retry.
@@ -523,7 +507,7 @@ Record device model, OS, app/browser version, date, configuration, and expected/
 7. Test keyboard navigation, screen-reader status, large text/zoom, reduced motion, and small displays.
 8. Enable the optional acknowledgment and verify single-action continuation and separate browser storage behavior.
 9. Inspect analytics events without treating visibility changes as success. Test declined consent and blocked providers.
-10. Repeat with Cloudflare challenges off and a temporary test rule on. Verify custom-domain and `pages.dev` differences, then remove the temporary rule.
+10. Repeat with Cloudflare challenges off and a temporary test rule on. Verify custom-domain and `workers.dev` differences, then remove the temporary rule.
 11. Capture neutral mobile/desktop screenshots from a real browser for the README; do not use production identity in public assets.
 
 ### Performance targets
@@ -544,7 +528,7 @@ For the neutral build without optional vendor scripts or a portrait: combined fi
 - **AC-10:** Cloudflare setup, free security controls, stronger-challenge trade-offs, and rollback are documented and verifiable.
 - **AC-11:** Shared rendering, a reproducible neutral example, screenshots, compatibility evidence, and tests make the project understandable to a reviewer.
 - **AC-12:** Unsupported or untested device combinations are labeled honestly; no claim of guaranteed native opening or moderation avoidance.
-- **AC-13:** Bouncy is optional, configurable per deployment/link, and usable without a required paid plan; every integrated provider URL has a direct destination and honest fallback limitations. Removing Bouncy leaves the primary website fully functional.
+- **AC-13 (deferred):** Dedicated Bouncy integration is outside the current release scope. Direct/native behavior must remain independent of any provider.
 - **AC-14:** At least two differently configured sites can be built from unchanged application source with isolated branding, links, domains, themes, analytics settings, and feature flags. The neutral hosted demo shares that rendering implementation.
 - **AC-15:** README links a publicly accessible demo and neutral screenshots; architecture, configuration, Cloudflare deployment/custom domains, security/privacy, and integration limitations are documented without exposing credentials or production inputs.
 
@@ -559,12 +543,12 @@ Required documentation coverage (extend the existing guides; avoid duplicate spe
 | Documentation | Required coverage |
 | --- | --- |
 | Architecture | Static rendering and progressive enhancement; `example.html` snapshot versus served demo; shared renderer; independent deployments and application/Cloudflare boundaries |
-| Configuration | Schema, defaults, precedence, migration/backward compatibility, themes/branding, ordered links, feature flags, direct/Bouncy URLs, analytics, public examples, and private production settings |
+| Configuration | Schema, defaults, precedence, migration/backward compatibility, themes/branding, ordered links, feature flags, direct URLs, analytics, public examples, and private production settings |
 | Cloudflare deployment and custom domains | Demo plus multiple production projects from one repo; build/output settings; project-scoped variables; preview isolation; DNS/apex/subdomain/HTTPS setup; Free limits; upload alternative and rollback |
 | Security and privacy | Public source versus rendered settings versus secrets; safe rendering/CSP; WAF and optional browser verification; conversion effects; public deployment checks; provider requests and analytics/consent choices; no cloaking |
-| Integrations and verification | Native and Bouncy compatibility/fallbacks; free-versus-paid provider limits; analytics and acknowledgment limitations; device evidence, accessibility, responsive behavior, and measured performance |
+| Integrations and verification | Native compatibility/fallbacks; analytics and acknowledgment limitations; device evidence, accessibility, responsive behavior, and measured performance |
 
-Provide an MIT license for reusable source, a concise contribution guide, documented commands, versioned schema behavior, and CI status. Add a small architecture decision section explaining static generation, progressive enhancement, source/config separation, experimental schemes, optional provider handoff, and event semantics. A separate ADR system is optional; avoid paperwork that duplicates this specification.
+Provide an MIT license for reusable source, a concise contribution guide, documented commands, versioned schema behavior, and CI status. Add a small architecture decision section explaining static generation, progressive enhancement, source/config separation, experimental schemes and event semantics. A separate ADR system is optional; avoid paperwork that duplicates this specification.
 
 Store evidence with neutral data: test output summaries, reproducible screenshot steps, measured performance conditions, and a device compatibility table. Do not invent test coverage percentages, conversion uplifts, device results, or production usage claims. Screenshots must be browser renders of the implementation, not generated design mockups labeled as working software.
 
@@ -576,26 +560,25 @@ Public contributor documentation should explain where ignored `site.json` belong
 
 | Existing requirement or documentation | Resolution in this expansion |
 | --- | --- |
-| Explicit exclusion of Bouncy and restriction to direct/native modes | Superseded by the current request for optional Bouncy integration. Retain native support, direct defaults, and backward compatibility; add an independent direct fallback for provider use. |
+| Dedicated Bouncy integration | Deferred by the current scope decision. Keep direct/native modes and ordinary HTTPS service links. |
 | Absolute prohibition on a second private repository | Keep one public repository as the architecture; allow an exception only for a documented technical/security need. No such need is established here. |
 | Earlier guides suggest a private repo to hide deployment association | Prefer isolated build settings or local build/upload from the same source. Document that public deployment checks may expose the association; update those guides during later documentation work. |
-| Independently maintained `example.html` versus a single rendering implementation | Preserve the current offline file and its neutral-only contract; propose explicit regeneration from shared rendering without implementing it now. |
+| Independently maintained `example.html` versus a single rendering implementation | Preserve the offline file and its neutral-only contract through explicit regeneration from the shared renderer. |
 | Private build input terminology could imply secret client-visible settings | Distinguish source privacy, public generated values, and actual credentials. Encryption at build time cannot hide values delivered to visitors. |
 | Native handoff as the central feature versus a fully usable core website | Preserve the native capability, but make its activation and all provider/analytics/acknowledgment features optional. Production links never depend on successful handoff. |
-| Detailed implementation sequence versus this specification-only request | Replace the sequence with requirements, acceptance criteria, and decisions. All application restructuring and implementation remain future work. |
+| Earlier specification-only workflow | Replaced by this implementation contract; track actual verification in the status guide. |
 
-Existing configuration precedence, commands/output directories, production branch restrictions, direct-link/SEO behavior, accessibility/performance targets, analytics/acknowledgment requirements, security validation, and publication safeguards remain in force. Only conflicting exclusions are superseded. README and existing guides still describe the baseline until separately updated; this file remains the single authoritative specification.
+Existing configuration precedence, commands/output directories, production branch restrictions, direct-link/SEO behavior, accessibility/performance targets, analytics/acknowledgment requirements, security validation, and publication safeguards remain in force. Only conflicting exclusions are superseded. README and detailed guides must agree with this authoritative specification.
 
 ### Decisions still to resolve
 
 | Decision | Current default and resolution needed |
 | --- | --- |
-| Production deployment workflow per site | Prefer a separate Pages project using the same public repository and isolated build settings. Choose local/CI output upload where public deployment associations are unacceptable; no private repo is presumed. |
-| Bouncy hostname support | A provider-issued HTTPS URL is sufficient for the base design. Before implementation, decide whether to restrict integration URLs to `bouncy.ai` or support explicitly approved provider/custom domains; all choices must retain HTTPS/no-credentials validation and direct fallback without requiring a paid plan. |
+| Production deployment workflow per site | Prefer a separate Worker using the same public repository and isolated build settings. Choose local/CI output upload where public deployment associations are unacceptable; no private repo is presumed. |
 | Local management of many production configs | Existing `SITE_CONFIG_JSON` and ignored `config/site.json` cover the required behavior. Defer any named-profile selector or extra file layout until operator needs justify it; preserve current precedence if added. |
 | Device support and experimental native defaults | Keep legacy configs direct, the new native example explicitly opted in, and automatic opening off. Real-device evidence must determine which strategies can be described as supported and whether experimental defaults should change. |
 
-The live demo hostname and each production site's branding, analytics/consent policy, and challenge thresholds are deployment choices, not reasons to fork the application. Select them when configuring deployments; do not invent live URLs or compatibility evidence in this brief. No unresolved choice blocks completing this specification-only expansion.
+The live demo hostname and each production site's branding, analytics/consent policy, and challenge thresholds are deployment choices, not reasons to fork the application. Select them when configuring deployments; do not invent live URLs or compatibility evidence in this brief. A hosted demo and real-device evidence remain deployment/release deliverables.
 
 ## 14. Known limits and trade-offs
 
@@ -604,10 +587,10 @@ The live demo hostname and each production site's branding, analytics/consent po
 - Targeting a package improves determinism but may select a browser other than the visitor's default or fail when that browser is absent.
 - Handoff changes browser storage context; age state, analytics sessions, cookies, and challenge clearance may not transfer.
 - Page visibility is only an observation. Static pages cannot reliably confirm an external destination loaded.
-- External service URLs entered as normal links retain ordinary behavior. Optional Bouncy handoff adds provider availability, changing free-tier terms, mutable redirect destinations, privacy exposure, and platform-policy risk; direct navigation remains the fallback, and this application cannot verify a remote handoff succeeded.
+- External service URLs entered as normal links retain ordinary behavior. The application cannot verify the availability or destination mapping of an external redirect service.
 - Self-attestation is not a restricted-content boundary. A static public page cannot hide its markup or enforce identity checks.
 - Analytics is lossy, and Cloudflare's free Web Analytics does not supply the requested custom-event reporting by itself.
 - Keeping real config out of GitHub does not conceal the rendered website or guarantee that its relationship to the repository is undiscoverable.
 - Cloudflare challenges can add more friction than handoff removes; security configuration must be evaluated on actual traffic and devices.
 - Theme freedom means arbitrary custom themes are not automatically accessible. Defaults and published examples must meet the stated targets.
-- This specification expansion did not perform application tests, device handoff checks, or live deployment verification. Record verification limits without presenting planned functionality as completed.
+- Record verification limits in `docs/implementation-status.md`; automated browser tests do not establish real-device or live-deployment compatibility.

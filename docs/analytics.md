@@ -4,7 +4,7 @@ Links, browser strategies, and the landing page work without any external analyt
 
 ## Cloudflare visits and performance
 
-Use either dashboard injection or a manual beacon, not both. With `analytics.cloudflareToken` empty, enable Pages Web Analytics in the project dashboard and redeploy. Alternatively, create a Web Analytics site, put its public 32-character site token in this config field, and disable automatic injection for that site. See [Pages setup](https://developers.cloudflare.com/pages/how-to/web-analytics/) and the [FAQ](https://developers.cloudflare.com/web-analytics/faq/).
+For Workers, create a Web Analytics site and place its public 32-character beacon token in `analytics.cloudflareToken`, then rebuild. Use either the generated manual beacon or Cloudflare's automatic injection on an eligible zone, never both. Leave the token empty if using automatic injection. Existing Pages deployments can still use their dashboard integration. See [Web Analytics setup](https://developers.cloudflare.com/web-analytics/get-started/) and the [FAQ](https://developers.cloudflare.com/web-analytics/faq/).
 
 Cloudflare Web Analytics does not currently support custom events or UTM-query reporting. It supplies visit/performance information, not CTA clicks, handoff success, or purchases. The build preserves CSP allowances for its beacon and collection endpoints.
 
@@ -39,7 +39,7 @@ Set `analytics.ga4MeasurementId` to a valid `G-…` value for GA4 reporting. `la
 
 ## Consent and failure behavior
 
-The default `ga4Consent: required` displays small inline allow/decline controls and loads no Google script before permission. Pre-consent clicks are not replayed later. Choosing Allow reports the current view only. Choosing Keep analytics off disables future adapter events; previously created provider cookies are not retroactively erased. The choice is in-memory and the control remains available on the page.
+The default `ga4Consent: required` displays small inline allow/decline controls and loads no Google script before permission. Pre-consent clicks are not replayed later. Choosing Allow reports the current view only, at most once for this document even after Allow → Decline → Allow or while the provider is still loading. Choosing Keep analytics off disables future adapter events; previously created provider cookies are not retroactively erased. The choice is in-memory and the control remains available on the page.
 
 `ga4Consent: granted` is an explicit deployment policy choice. It does not determine whether that policy meets requirements for your audience. Ads storage, personalization, and ads user-data consent remain denied; the integration enables no advertising features. Cloudflare collection is configured independently of this GA4 choice.
 

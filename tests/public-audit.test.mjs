@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { appendFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -45,7 +45,7 @@ test('Git ignores private config, assets, outputs and archives, and forced track
   const dir = await mkdtemp(path.join(tmpdir(), 'profile-index-test-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   await copyPublicSource(dir);
-  const ignored = ['config/site.json', '.private/assets/portrait.png', 'dist/index.html', 'dist-private/index.html', '.env', '.dev.vars', 'preview.zip'];
+  const ignored = ['config/site.json', 'config/site.json.old', 'config/site.config.json.bak', '.private/assets/portrait.png', 'dist/index.html', 'dist-private/index.html', '.env', '.dev.vars', 'preview.zip', 'credentials.pem', 'credentials.key', 'credentials.p12', 'credentials.pfx', 'playwright/.auth/session.json'];
   for (const file of ignored) {
     await mkdir(path.dirname(path.join(dir, file)), { recursive: true });
     await writeFile(path.join(dir, file), file.endsWith('.json') ? '{}' : 'local-only');
@@ -53,7 +53,7 @@ test('Git ignores private config, assets, outputs and archives, and forced track
   try {
     execFileSync('git', ['init', '-q'], { cwd: dir });
   } catch (error) {
-    if (['EPERM', 'EACCES', 'ENOENT'].includes(error.code)) {
+    if (!process.env.CI && ['EPERM', 'EACCES', 'ENOENT'].includes(error.code)) {
       t.skip('Git subprocess unavailable in this environment. Run this test on a host with Git process access.');
       return;
     }
@@ -66,6 +66,22 @@ test('Git ignores private config, assets, outputs and archives, and forced track
   execFileSync('git', ['add', '-f', 'config/site.json'], { cwd: dir });
   await assert.rejects(() => auditPublic(dir), /tracked file/);
   assert.ok((await readFile(path.join(dir, '.gitignore'), 'utf8')).includes('.private/'));
+});
+
+test('publication audit inspects the Git index through a directory alias on macOS and Linux', async (t) => {
+  const parent = await mkdtemp(path.join(tmpdir(), 'profile-alias-test-'));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const dir = path.join(parent, 'checkout'), alias = path.join(parent, 'alias');
+  await mkdir(dir);
+  await copyPublicSource(dir);
+  await symlink(dir, alias, 'dir');
+  execFileSync('git', ['init', '-q'], { cwd: dir });
+  execFileSync('git', ['add', '.'], { cwd: dir });
+  assert.equal((await auditPublic(dir)).gitChecked, true);
+  assert.equal((await auditPublic(alias)).gitChecked, true);
+  await writeFile(path.join(dir, 'config/site.json.old'), '{}');
+  execFileSync('git', ['add', '-f', 'config/site.json.old'], { cwd: dir });
+  await assert.rejects(() => auditPublic(alias), /tracked file/);
 });
 
 test('technical platform labels do not exempt creator identities or full destination URLs', async (t) => {

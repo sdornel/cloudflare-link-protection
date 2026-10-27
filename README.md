@@ -1,10 +1,12 @@
 # Static Profile Platform
 
-A lightweight, self-hosted links page with native, best-effort external-browser opening. One public repository can power a neutral portfolio demo and separately configured production sites on Cloudflare Pages Free.
+A lightweight, self-hosted links page with native, best-effort external-browser opening. One public repository can power a neutral portfolio demo and separately configured production sites on Cloudflare Workers Static Assets.
 
 The landing page renders as ordinary HTML. Its buttons keep their real HTTPS destinations when scripts, analytics, or a browser handoff fail. Experimental mobile strategies enhance supported Instagram visits; normal browsers keep normal navigation.
 
 ## Try it
+
+Open the [live demo](https://cloudflare-link-protection.skdornel.workers.dev/).
 
 Open [example.html](example.html) for the standalone neutral design, or build the full application with Node.js 22 or newer:
 
@@ -14,9 +16,17 @@ npm run dev
 
 Visit **http://localhost:4173**. No package installation is needed to build or serve. Rebuild and refresh after editing settings. `npm run build` generates `dist/index.html`, which also opens directly from disk for the basic page; use HTTP/HTTPS to test JavaScript modules.
 
-To pick up deployment later, open **Publish with Cloudflare** beneath the neutral demo's footer. The guide includes the exact Pages settings, a deployment checklist, and troubleshooting. It works offline in `example.html` (dashboard links require internet) and appears in sample builds, including `npm run build:example`. Configured pages omit it.
+To pick up deployment later, open **Publish with Cloudflare** beneath the neutral demo's footer. The guide includes the exact Workers settings, a deployment checklist, and troubleshooting. It works offline in `example.html` (dashboard links require internet) and appears in sample builds, including `npm run build:example`. Configured pages omit it.
 
-The standalone example shares the production renderer and embeds its stylesheet. Refresh it explicitly with `npm run example:refresh`; normal builds leave it untouched. [Browser screenshots](docs/testing.md#browser-screenshots) can be captured from the neutral renderer; screenshots and a hosted demo URL have not yet been produced in this checkout. No live deployment is claimed.
+The standalone example shares the production renderer and embeds its stylesheet. Refresh it explicitly with `npm run example:refresh`; normal builds leave it untouched. The browser captures below use the served neutral build. The [Cloudflare guide](docs/cloudflare.md#public-demo-project) explains how to deploy your own Worker.
+
+## Screenshots
+
+[Mobile capture](docs/images/demo-mobile.png) · [Desktop capture](docs/images/demo-desktop.png)
+
+<img src="docs/images/demo-mobile.png" alt="Neutral profile page at a 390-pixel mobile viewport" width="260">
+
+![Neutral profile page at a desktop viewport](docs/images/demo-desktop.png)
 
 ## Features
 
@@ -76,20 +86,15 @@ flowchart LR
 
 `scripts/render.mjs` owns HTML rendering. `src/client/browser-opening.js` owns pure strategy/URL decisions; `handoff-controller.js` owns attempts, timers, and lifecycle. `app.js` connects them to the DOM. Analytics reports attempts and observations, never assumed external-browser success. Read the [architecture decisions](docs/architecture.md) and [implementation status](docs/implementation-status.md).
 
-## Cloudflare Pages
+## Cloudflare Workers
 
-Use separate Pages projects connected to this same public repository:
+Keep the Worker connected to this repository. Set **build** to `npm run build`, **deploy** to `npx wrangler deploy`, and **root** to `/`. Leave build variables and secrets empty and keep dependency installation enabled. With no private config in the Git checkout, the build uses the neutral sample. No runtime variables or bindings are needed.
 
-| Deployment | Build command | Output | Input |
-| --- | --- | --- | --- |
-| Public demo | `npm run build:example` | `dist` | Neutral sample only |
-| Automatic selection | `npm run build` | `dist` | Optional `SITE_CONFIG_JSON`; sample if absent in Git checkout |
-| Customized preview | `npm run build:private` | `dist-private` | Production-scoped `SITE_CONFIG_JSON` |
-| Configured live site | `npm run build:private:production` | `dist-private` | Same input with real domain and placeholders disabled |
+`wrangler.jsonc` serves `dist/` with security headers and real 404 responses. Its name matches `cloudflare-link-protection`. Review the deployment locally with `npm ci` followed by `npm run check:workers`; this does not publish anything.
 
-Choose framework None and Node 22 or newer. Add the custom domain through Pages, supply the real config in the project's encrypted build settings, and keep production input out of untrusted preview builds. Hosting and basic analytics can use the free tier; domain registration remains separate.
+Use a separate Worker for each customized site. Build with `npm run build:private:production`, supply `SITE_CONFIG_JSON` as a build secret, and deploy with `npx wrangler deploy --assets ./dist-private --name your-site-worker`. Disable non-production branch builds on Workers that receive private inputs.
 
-Follow [Cloudflare deployment](docs/cloudflare.md) for domains, HTTPS, multiple projects, and rollback. [Security](docs/security.md) covers WAF, Managed Challenge, optional stronger verification, and in-app browser trade-offs. Security controls never change the page's destinations for reviewers.
+Follow [Cloudflare deployment](docs/cloudflare.md) for setup, domains, HTTPS, independent sites, and rollback. [Security](docs/security.md) covers WAF and Managed Challenge. Existing Pages projects can still serve the generated output, but [Cloudflare recommends Workers for new projects](https://developers.cloudflare.com/pages/).
 
 ## Verify and contribute
 
@@ -106,8 +111,9 @@ npm ci
 npx playwright install chromium webkit
 npm run test:browser
 npm run screenshots
+npm run check:performance
 ```
 
-The [testing guide](docs/testing.md) separates automated evidence from real-device checks. Browser installation, screenshots, and hosted checks are still unverified in this restricted environment. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [MIT license](LICENSE).
+The [testing guide](docs/testing.md) separates automated evidence from real-device checks. Chromium/WebKit tests, neutral screenshots, local performance measurements, and initial live-demo checks are recorded in the [status guide](docs/implementation-status.md). Physical Instagram handoff and custom-domain checks remain pending. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [MIT license](LICENSE).
 
-`SPEC.md` is being edited separately. Current implementation follows the user's explicit two-mode requirement; its conflicting provider-specific section needs reconciliation by the spec owner before release.
+Dedicated Bouncy integration is deferred. The [specification](SPEC.md) and [implementation status](docs/implementation-status.md) track the current direct/native scope and remaining release checks.

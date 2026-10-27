@@ -68,3 +68,29 @@ test('explicit null optional values are rejected rather than mistaken for omissi
     const config = fresh(); mutate(config); assert.throws(() => validateConfig(config));
   }
 });
+
+for (const loadBeforeChange of [true, false]) {
+  test(`GA4 reports one view across consent changes (${loadBeforeChange ? 'loaded' : 'loading'} adapter)`, () => {
+    const scripts = [], commands = [];
+    const win = {
+      location: { protocol: 'https:', origin: 'https://example.com', pathname: '/' },
+      document: { referrer: '', createElement: () => ({}), head: { append: script => scripts.push(script) } },
+      gtag: (...args) => commands.push(args),
+    };
+    const analytics = createAnalytics(win, { ga4MeasurementId: 'G-TEST1234', ga4Consent: 'required' });
+    analytics.track('landing_view');
+    analytics.setConsent(true);
+    if (loadBeforeChange) scripts[0].onload();
+    analytics.setConsent(false);
+    analytics.track('outbound_click', { link_id: 'declined' });
+    analytics.setConsent(true);
+    analytics.track('landing_view');
+    if (!loadBeforeChange) scripts[0].onload();
+    analytics.track('outbound_click', { link_id: 'allowed' });
+    const events = commands.filter(command => command[0] === 'event');
+    assert.equal(events.filter(command => command[1] === 'page_view').length, 1);
+    assert.equal(events.filter(command => command[1] === 'outbound_click').length, 1);
+    assert.doesNotMatch(JSON.stringify(events), /declined/);
+    assert.equal(scripts.length, 1);
+  });
+}

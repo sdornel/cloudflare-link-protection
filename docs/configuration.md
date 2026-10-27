@@ -95,14 +95,14 @@ Cloudflare cannot read ignored files from your computer. For Git-backed private 
 
 ## Before publishing the repository
 
-1. Keep real page settings in ignored `config/site.json`, and private assets and notes in `.private/`. Keep both output folders, ZIPs, local environment files, and credentials out of Git.
+1. Keep real page settings in ignored `config/site.json`, and private assets and notes in `.private/`. Keep both output folders, ZIPs, local environment files, and credentials out of Git. Config backup names (`site.json.*` / `site.config.json.*`), private key/certificate bundles (`*.pem`, `*.key`, `*.p12`, `*.pfx`), and `playwright/.auth/` are ignored too. Keep additional named site configs and production screenshots inside `.private/`; arbitrary filenames elsewhere are not automatically private.
 2. Run `npm test`, `npm run build:example`, and `npm run check:public`. Build output stays ignored even when `npm run build` uses your local settings.
 3. Review `git diff --cached` and `git ls-files` before pushing. The check reports when Git is unavailable and only the known source folders were inspected.
-4. Check commit history, README screenshots, issue text, release assets, and Pages deployment/check links before making an existing repository public. `.gitignore` does not remove previously committed content or hide prior history.
+4. Check commit history, README screenshots, issue text, release assets, and Cloudflare deployment/check links before making an existing repository public. `.gitignore` does not remove previously committed content or hide prior history.
 
 For a repository that already contains private configuration, start with a clean public repository or remove the sensitive history before changing visibility. The project does not rewrite repository history automatically.
 
-A customized Pages project connected to a public repo may expose its deployment URL through GitHub checks even though its input config is encrypted. If keeping that association private matters, build locally from this same repository and upload the output manually instead. The source/config separation alone does not guarantee anonymity.
+A customized Worker connected to a public repo may expose its deployment URL through GitHub checks even though its input config is encrypted. If keeping that association private matters, build locally from this same repository and upload the output manually instead. The source/config separation alone does not guarantee anonymity.
 
 For additional case-insensitive keyword checks, put an array of strings in `.private/audit-terms.json`. Keep that file ignored too: your exclusion terms can reveal the very associations you want to keep out of public source. The checker reports the affected source file without printing the matched private value.
 

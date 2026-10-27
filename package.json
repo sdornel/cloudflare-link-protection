@@ -19,9 +19,12 @@
     "test": "node --test tests/*.test.mjs",
     "example:refresh": "node scripts/example.mjs",
     "test:browser": "playwright test",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "check:performance": "node scripts/performance.mjs",
+    "check:workers": "npm run build:example && wrangler deploy --dry-run"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1"
+    "@playwright/test": "1.64.1",
+    "wrangler": "4.154.0"
   }
 }

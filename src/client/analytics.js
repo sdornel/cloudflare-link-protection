@@ -16,16 +16,19 @@ export function eventDetail(name, fields = {}) {
 }
 
 export function createAnalytics(win, options = {}) {
-  let permitted = options.ga4Consent === 'granted', ready = false, started = false, failed = false;
+  let permitted = options.ga4Consent === 'granted', ready = false, started = false, failed = false, viewSent = false;
   let queue = [], script;
   const id = options.ga4MeasurementId;
   const cleanLocation = () => `${win.location.origin}${win.location.pathname}`;
   const cleanReferrer = () => { try { return new URL(win.document.referrer).origin; } catch { return ''; } };
   const send = (detail) => {
     if (!permitted || !id || failed) return;
+    if (detail.name === 'landing_view' && viewSent) return;
     if (!ready) { if (queue.length < 30) queue.push(detail); return; }
     try {
       const { name, ...fields } = detail;
+      // Claim before calling the adapter, including when it throws or re-enters.
+      if (name === 'landing_view') viewSent = true;
       win.gtag('event', name === 'landing_view' ? 'page_view' : name, { ...fields, page_location: cleanLocation(), page_referrer: cleanReferrer(), page_title: 'Profile links', transport_type: 'beacon' });
     } catch {}
   };

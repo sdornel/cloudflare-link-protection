@@ -1,18 +1,18 @@
 import { spawnSync } from 'node:child_process';
-import { lstat, readFile, readdir } from 'node:fs/promises';
+import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readJSON, root } from './config.mjs';
 
 // Explicit source roots also make the pre-Git review possible without including local artifacts.
-export const sourceRoots = ['.gitignore', 'README.md', 'SPEC.md', 'example.html', 'package.json', 'package-lock.json', 'LICENSE', 'CONTRIBUTING.md', 'playwright.config.mjs', '.github', 'config', 'docs', 'public', 'scripts', 'src', 'tests'];
-const forbidden = /(?:^|\/)(?:\.private|dist(?:-private)?|node_modules|\.aws|\.agents|\.codex|\.wrangler|\.env(?:\..*)?|\.dev\.vars(?:\..*)?|site(?:\.config)?\.json)(?:\/|$)|(?:^|\/)(?:test-results|playwright-report|browser-output)(?:\/|$)|\.(?:zip|log)$/i;
+export const sourceRoots = ['.gitignore', 'README.md', 'SPEC.md', 'example.html', 'package.json', 'package-lock.json', 'LICENSE', 'CONTRIBUTING.md', 'playwright.config.mjs', 'wrangler.jsonc', '.github', 'config', 'docs', 'public', 'scripts', 'src', 'tests'];
+const forbidden = /(?:^|\/)(?:\.private|dist(?:-private)?|node_modules|\.aws|\.agents|\.codex|\.wrangler|\.env(?:\..*)?|\.dev\.vars(?:\..*)?|site(?:\.config)?\.json(?:\.[^/]*)?)(?:\/|$)|(?:^|\/)(?:test-results|playwright-report|browser-output|playwright\/\.auth)(?:\/|$)|\.(?:zip|log|pem|key|p12|pfx)$/i;
 
 export async function publicFiles(projectRoot = root) {
   const files = [];
   async function visit(relative) {
     // This local-only file intentionally lives beside the tracked sample.
-    if (relative === 'config/site.json') return;
+    if (/^config\/site(?:\.config)?\.json(?:\.[^/]*)?$/.test(relative)) return;
     if (forbidden.test(relative)) throw new Error('Private or generated file found inside public source roots.');
     const file = path.join(projectRoot, relative);
     const info = await lstat(file);
@@ -29,7 +29,9 @@ export async function auditPublic(projectRoot = root) {
   const files = await publicFiles(projectRoot);
   const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: projectRoot, encoding: 'utf8' });
   let gitChecked = false;
-  if (!top.error && top.status === 0 && path.resolve(top.stdout.trim()) === path.resolve(projectRoot)) {
+  // Git resolves filesystem aliases (including macOS /var -> /private/var).
+  // Canonicalize both sides on every OS; do not hard-code a platform prefix.
+  if (!top.error && top.status === 0 && await realpath(top.stdout.trim()) === await realpath(projectRoot)) {
     const tracked = spawnSync('git', ['ls-files', '--cached', '-z'], { cwd: projectRoot, encoding: 'utf8' });
     if (tracked.error || tracked.status !== 0) throw new Error('Could not inspect the Git index.');
     const unexpected = tracked.stdout.split('\0').filter(Boolean).filter((file) => forbidden.test(file) || !files.includes(file));
@@ -73,6 +75,7 @@ export async function auditPublic(projectRoot = root) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const result = await auditPublic();
+    if (process.env.CI && !result.gitChecked) throw new Error('CI requires Git index inspection; run from the repository root with Git available.');
     console.log(`Public source audit passed: ${result.files.length} files. ${result.gitChecked ? 'Git index inspected.' : 'Git index unavailable; checked known source roots only.'} ${result.privateChecked ? 'Compared local private display fields without printing them.' : 'No local private config available for comparison.'} ${result.termsChecked ? 'Private audit terms checked.' : ''}`);
   } catch (error) {
     console.error(`Publication check failed: ${error.message}`);

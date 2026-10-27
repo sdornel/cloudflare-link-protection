@@ -4,9 +4,10 @@ permissions:
   contents: read
 jobs:
   unit:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest]
         node: [22, 24]
     steps:
       - uses: actions/checkout@v4
@@ -14,7 +15,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
-      - run: npm run build:example
+      - run: npm run build
       - run: npm run example:refresh && git diff --exit-code -- example.html
       - run: npm run check:public
   browser:
@@ -25,9 +26,13 @@ jobs:
         with:
           node-version: 24
       - run: npm ci --ignore-scripts
+      - run: npm run check:workers
+        env:
+          WRANGLER_SEND_METRICS: "false"
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:browser
       - run: npm run screenshots
+      - run: npm run check:performance
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -35,3 +40,4 @@ jobs:
           path: |
             test-results/
             docs/images/*.png
+            browser-output/performance.json

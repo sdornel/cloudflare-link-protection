@@ -28,8 +28,10 @@ export async function resolveConfig({ privateBuild = false, exampleBuild = false
   });
   if (exampleBuild) return example();
 
+  const cloudflareBuild = env.WORKERS_CI === '1' || env.CF_PAGES === '1';
+  const cloudflareBranch = env.WORKERS_CI === '1' ? env.WORKERS_CI_BRANCH : env.CF_PAGES_BRANCH;
   const checkBranch = () => {
-    if (env.CF_PAGES === '1' && env.CF_PAGES_BRANCH !== (env.SITE_PRODUCTION_BRANCH || 'main')) {
+    if (cloudflareBuild && cloudflareBranch !== (env.SITE_PRODUCTION_BRANCH || 'main')) {
       throw new Error('Customized builds are restricted to the configured production branch. Use --example for previews.');
     }
   };
@@ -38,7 +40,7 @@ export async function resolveConfig({ privateBuild = false, exampleBuild = false
     checkBranch();
     return { config: parseJSON(env.SITE_CONFIG_JSON, 'SITE_CONFIG_JSON'), source: 'environment' };
   }
-  if (privateBuild && env.CF_PAGES === '1') throw new Error('Private build requires SITE_CONFIG_JSON in the production build environment.');
+  if (privateBuild && cloudflareBuild) throw new Error('Private build requires SITE_CONFIG_JSON in the production build environment.');
 
   let local;
   try {
