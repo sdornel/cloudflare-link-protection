@@ -1,0 +1,47 @@
+{
+  "name": "Your name",
+  "bio": "Software engineer. Building useful things.",
+  "description": "A simple home for projects, writing, and ways to get in touch.",
+  "siteUrl": "",
+  "placeholderLinks": true,
+  "profile": {
+    "initials": "YN",
+    "image": "",
+    "alt": "Profile portrait"
+  },
+  "primaryLink": {
+    "label": "Explore my work",
+    "url": "https://example.com/projects",
+    "icon": "arrow"
+  },
+  "secondaryLinks": [
+    {
+      "label": "Read my notes",
+      "url": "https://example.com/notes",
+      "icon": "none",
+      "enabled": true
+    },
+    {
+      "label": "Get in touch",
+      "url": "https://example.com/contact",
+      "icon": "none",
+      "enabled": true
+    }
+  ],
+  "previewNote": "Demo \u00b7 replace these example links with your own.",
+  "seo": {
+    "title": "Your name | Projects & links",
+    "image": "",
+    "imageAlt": ""
+  },
+  "analytics": {
+    "cloudflareToken": ""
+  },
+  "appearance": {
+    "browserThemeColor": "#f8fafc",
+    "colorScheme": "light",
+    "faviconBackground": "#e1e9f8",
+    "faviconText": "#314d7b"
+  },
+  "styles": {}
+}

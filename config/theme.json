@@ -1,0 +1,242 @@
+{
+  "variables": {
+    "background": "#f8fafc",
+    "text": "#172033",
+    "muted": "#536176",
+    "accent": "#315dc4",
+    "accent-hover": "#2548a1",
+    "on-accent": "#ffffff",
+    "border": "#d7dfeb",
+    "avatar-background": "#e1e9f8",
+    "avatar-text": "#314d7b",
+    "link-background": "#ffffff",
+    "link-hover-background": "#ffffff",
+    "page-background": "radial-gradient(ellipse at 8% 6%, #e1e9f880, transparent 48%), radial-gradient(ellipse at 94% 83%, #e1e9f860, transparent 45%), var(--background)",
+    "avatar-shadow": "0 0 0 1px var(--border), 0 8px 28px #17203309",
+    "primary-shadow": "0 6px 20px #315dc41a",
+    "link-hover-shadow": "0 7px 20px #17203310",
+    "primary-hover-shadow": "0 8px 24px #315dc426",
+    "tap-highlight": "#315dc41a",
+    "font-family": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    "avatar-size": "114px",
+    "icon-size": "21px"
+  },
+  "rules": {
+    "*": {
+      "box-sizing": "border-box"
+    },
+    "html": {
+      "min-width": "280px",
+      "background": "var(--background)",
+      "color": "var(--text)",
+      "color-scheme": "light",
+      "-webkit-text-size-adjust": "100%"
+    },
+    "body": {
+      "margin": "0",
+      "min-height": "100svh",
+      "font-family": "var(--font-family)",
+      "-webkit-font-smoothing": "antialiased",
+      "background": "var(--page-background)"
+    },
+    ".page": {
+      "width": "min(100%, 488px)",
+      "margin-inline": "auto",
+      "padding": "40px 22px 24px",
+      "padding-top": "max(40px, env(safe-area-inset-top))",
+      "padding-right": "max(22px, env(safe-area-inset-right))",
+      "padding-bottom": "max(24px, env(safe-area-inset-bottom))",
+      "padding-left": "max(22px, env(safe-area-inset-left))",
+      "text-align": "center"
+    },
+    ".profile": {
+      "margin-bottom": "28px"
+    },
+    ".avatar": {
+      "display": "grid",
+      "place-items": "center",
+      "width": "var(--avatar-size)",
+      "height": "var(--avatar-size)",
+      "margin": "0 auto 25px",
+      "overflow": "hidden",
+      "border": "5px solid var(--background)",
+      "border-radius": "50%",
+      "background": "var(--avatar-background)",
+      "box-shadow": "var(--avatar-shadow)",
+      "color": "var(--avatar-text)",
+      "font-size": "35px",
+      "font-weight": "500",
+      "letter-spacing": "-1px"
+    },
+    ".avatar img": {
+      "display": "block",
+      "width": "100%",
+      "height": "100%",
+      "object-fit": "cover"
+    },
+    "h1": {
+      "margin": "0",
+      "font-size": "clamp(28px, 7vw, 32px)",
+      "font-weight": "600",
+      "letter-spacing": "-0.9px",
+      "line-height": "1.25",
+      "overflow-wrap": "anywhere"
+    },
+    ".bio": {
+      "margin": "16px 0 0",
+      "color": "var(--muted)",
+      "font-size": "17px",
+      "font-weight": "400",
+      "line-height": "1.6",
+      "overflow-wrap": "anywhere"
+    },
+    ".links": {
+      "scroll-margin-top": "20px"
+    },
+    ".secondary-links": {
+      "display": "grid",
+      "gap": "14px",
+      "margin-top": "18px"
+    },
+    ".link": {
+      "display": "flex",
+      "align-items": "center",
+      "justify-content": "center",
+      "gap": "7px",
+      "min-height": "68px",
+      "width": "100%",
+      "padding": "18px 20px",
+      "border": "1px solid var(--border)",
+      "border-radius": "21px",
+      "background": "var(--link-background)",
+      "color": "var(--text)",
+      "text-decoration": "none",
+      "font-size": "19px",
+      "font-weight": "600",
+      "line-height": "1.4",
+      "-webkit-tap-highlight-color": "var(--tap-highlight)",
+      "touch-action": "manipulation",
+      "transition": "transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease"
+    },
+    ".link span": {
+      "overflow-wrap": "anywhere",
+      "min-width": "0"
+    },
+    ".link-primary": {
+      "min-height": "76px",
+      "border-color": "transparent",
+      "background": "var(--accent)",
+      "box-shadow": "var(--primary-shadow)",
+      "color": "var(--on-accent)",
+      "font-size": "20px"
+    },
+    ".icon": {
+      "flex": "0 0 var(--icon-size)",
+      "width": "var(--icon-size)",
+      "height": "var(--icon-size)"
+    },
+    ".link:active": {
+      "transform": "translateY(1px)"
+    },
+    ":focus-visible": {
+      "outline": "3px solid var(--accent)",
+      "outline-offset": "5px"
+    },
+    ".footer": {
+      "margin-top": "29px",
+      "color": "var(--muted)",
+      "font-size": "13px",
+      "line-height": "1.6"
+    },
+    ".footer p": {
+      "margin": "0"
+    },
+    ".footer .preview-note": {
+      "max-width": "290px",
+      "margin": "13px auto 0",
+      "font-size": "11px"
+    },
+    ".skip-link": {
+      "position": "fixed",
+      "top": "12px",
+      "left": "12px",
+      "z-index": "2",
+      "padding": "12px 18px",
+      "border-radius": "10px",
+      "background": "var(--text)",
+      "color": "var(--on-accent)",
+      "transform": "translateY(-200%)"
+    },
+    ".skip-link:focus": {
+      "transform": "translateY(0)"
+    }
+  },
+  "media": {
+    "(hover: hover)": {
+      ".link:hover": {
+        "transform": "translateY(-2px)",
+        "background": "var(--link-hover-background)",
+        "box-shadow": "var(--link-hover-shadow)"
+      },
+      ".link-primary:hover": {
+        "background": "var(--accent-hover)",
+        "box-shadow": "var(--primary-hover-shadow)"
+      }
+    },
+    "(min-width: 600px)": {
+      ".page": {
+        "padding-top": "clamp(52px, 9vh, 100px)"
+      },
+      ".avatar": {
+        "width": "124px",
+        "height": "124px"
+      },
+      ".profile": {
+        "margin-bottom": "32px"
+      },
+      ".bio": {
+        "font-size": "18px"
+      }
+    },
+    "(max-width: 350px)": {
+      ".page": {
+        "padding-inline": "16px",
+        "padding-top": "28px"
+      },
+      ".link, .link-primary": {
+        "font-size": "18px"
+      },
+      ".bio": {
+        "font-size": "16px"
+      }
+    },
+    "(prefers-reduced-motion: no-preference)": {
+      ".page": {
+        "animation": "arrive 400ms ease-out both"
+      }
+    },
+    "(prefers-reduced-motion: reduce)": {
+      "*, *::before, *::after": {
+        "animation": "none !important",
+        "transition": "none !important"
+      }
+    },
+    "(forced-colors: active)": {
+      ".link, .avatar": {
+        "border": "1px solid ButtonText"
+      }
+    }
+  },
+  "keyframes": {
+    "arrive": {
+      "from": {
+        "opacity": "0",
+        "transform": "translateY(6px)"
+      },
+      "to": {
+        "opacity": "1",
+        "transform": "translateY(0)"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "static-profile-page",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:production": "node scripts/build.mjs --production",
+    "build:private": "node scripts/build.mjs --private",
+    "build:private:production": "node scripts/build.mjs --private --production",
+    "dev": "node scripts/build.mjs && node scripts/serve.mjs",
+    "dev:private": "node scripts/build.mjs --private && node scripts/serve.mjs --private",
+    "preview": "node scripts/serve.mjs",
+    "preview:private": "node scripts/serve.mjs --private",
+    "check:public": "node scripts/check-public.mjs",
+    "test": "node --test"
+  }
+}

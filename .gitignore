@@ -1,0 +1,25 @@
+# Dependencies and generated files
+node_modules/
+dist/
+dist-private/
+*.zip
+coverage/
+*.log
+
+# Local Cloudflare state and environment variables
+.private/
+site.json
+site.config.json
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+
+# Local credentials, agent settings, and OS files
+.aws/
+.agents/
+.codex/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{{TITLE}}</title>
+    <meta name="description" content="{{DESCRIPTION}}">
+    <meta name="theme-color" content="{{BACKGROUND}}">
+    <meta name="color-scheme" content="{{COLOR_SCHEME}}">
+    <meta name="robots" content="{{ROBOTS}}">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="{{NAME}}">
+    <meta property="og:title" content="{{TITLE}}">
+    <meta property="og:description" content="{{DESCRIPTION}}">
+    <meta name="twitter:card" content="{{TWITTER_CARD}}">
+    {{SEO}}
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css?v={{ASSET_VERSION}}">
+  </head>
+  <body>
+    <a class="skip-link" href="#links">Skip to links</a>
+    <main class="page">
+      <header class="profile">
+        <div class="avatar">{{AVATAR}}</div>
+        <h1>{{NAME}}</h1>
+        <p class="bio">{{BIO}}</p>
+      </header>
+      <nav id="links" class="links" aria-label="{{NAME}}’s links" tabindex="-1">
+        {{PRIMARY_LINK}}
+        <div class="secondary-links">
+          {{SECONDARY_LINKS}}
+        </div>
+      </nav>
+      <footer class="footer">
+        <p>© {{NAME}}</p>
+        {{PREVIEW_NOTE}}
+      </footer>
+    </main>
+    {{ANALYTICS}}
+  </body>
+</html>
