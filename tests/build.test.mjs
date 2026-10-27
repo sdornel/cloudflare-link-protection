@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -36,13 +36,70 @@ test('standalone example has embedded styling and stays unchanged by configured 
   assert.doesNotMatch(before, /PRIVATE_EXAMPLE_ISOLATION_MARKER/);
 });
 
-test('public build ignores private environment input and emits direct functional links', async (t) => {
-  const { html, outDir } = await built(t, { env: { SITE_CONFIG_JSON: 'INVALID_PRIVATE_MARKER' } });
+test('explicit example build ignores private inputs and emits direct functional links', async (t) => {
+  const { html, outDir } = await built(t, { exampleBuild: true, env: { SITE_CONFIG_JSON: 'INVALID_PRIVATE_MARKER' } });
   for (const link of [original.primaryLink, ...original.secondaryLinks]) assert.ok(html.includes(`href="${link.url}"`));
   assert.match(html, /noindex, follow/);
   assert.doesNotMatch(html, /PRIVATE_MARKER|<script|http-equiv=["']refresh|target=["']_blank|onclick=/i);
   assert.match(await readFile(path.join(outDir, 'robots.txt'), 'utf8'), /User-agent: \*\nAllow: \//);
   assert.deepEqual((await readdir(outDir)).sort(), ['404.html', '_headers', 'favicon.svg', 'index.html', 'robots.txt', 'styles.css']);
+});
+
+test('default build uses local config, styles and private images, then falls back when the file is absent', async (t) => {
+  const projectRoot = await temp(t);
+  for (const file of ['config/site.example.json', 'config/theme.json', 'src/index.html', 'public/_headers']) {
+    await mkdir(path.dirname(path.join(projectRoot, file)), { recursive: true });
+    await copyFile(path.join(root, file), path.join(projectRoot, file));
+  }
+  const local = fresh();
+  local.name = 'LOCAL_CUSTOM_MARKER';
+  local.primaryLink.url = 'https://custom.example/projects';
+  local.profile.image = '/images/portrait.png';
+  local.profile.alt = 'A portrait';
+  local.styles = { variables: { accent: '#234567' } };
+  await writeFile(path.join(projectRoot, 'config/site.json'), JSON.stringify(local));
+  await mkdir(path.join(projectRoot, '.private/assets'), { recursive: true });
+  await writeFile(path.join(projectRoot, '.private/assets/portrait.png'), Buffer.from('89504e470d0a1a0a', 'hex'));
+  const result = await build({ projectRoot, env: {} });
+  const index = path.join(projectRoot, 'dist/index.html');
+  assert.equal(result.outDir, path.dirname(index));
+  assert.equal(result.configSource, 'local');
+  assert.match(await readFile(index, 'utf8'), /LOCAL_CUSTOM_MARKER/);
+  assert.ok((await readFile(index, 'utf8')).includes(`href="${local.primaryLink.url}"`));
+  assert.match(await readFile(path.join(result.outDir, 'styles.css'), 'utf8'), /--accent: #234567/);
+  assert.deepEqual(await readdir(path.join(result.outDir, 'images')), ['portrait.png']);
+
+  await build({ projectRoot, exampleBuild: true, env: { SITE_CONFIG_JSON: 'INVALID_PRIVATE_MARKER' } });
+  const exampleHTML = await readFile(index, 'utf8');
+  assert.ok(exampleHTML.includes(original.name));
+  assert.doesNotMatch(exampleHTML, /LOCAL_CUSTOM_MARKER|custom\.example/);
+  assert.ok(!(await readdir(result.outDir)).includes('images'));
+
+  await rm(path.join(projectRoot, 'config/site.json'));
+  assert.equal((await build({ projectRoot, env: {} })).configSource, 'example');
+  assert.equal(await readFile(index, 'utf8'), exampleHTML);
+});
+
+test('default config prefers environment and only falls back for an absent local file', async (t) => {
+  const projectRoot = await temp(t);
+  await mkdir(path.join(projectRoot, 'config'));
+  await writeFile(path.join(projectRoot, 'config/site.example.json'), JSON.stringify(fresh()));
+  const localFile = path.join(projectRoot, 'config/site.json');
+  await writeFile(localFile, '"PRIVATE_MARKER": broken');
+  const env = { SITE_CONFIG_JSON: JSON.stringify({ ...fresh(), name: 'ENV_PRIVATE_MARKER' }) };
+  const { html } = await built(t, { env });
+  assert.match(html, /ENV_PRIVATE_MARKER/);
+  assert.equal((await loadConfig({ projectRoot, env })).name, 'ENV_PRIVATE_MARKER');
+  await assert.rejects(() => loadConfig({ projectRoot, env: {} }), (error) => error.message.includes('config/site.json') && !error.message.includes('PRIVATE_MARKER'));
+  for (const value of ['', '"PRIVATE_MARKER": broken']) {
+    await assert.rejects(() => loadConfig({ projectRoot, env: { SITE_CONFIG_JSON: value } }), (error) => error.message.includes('SITE_CONFIG_JSON') && !error.message.includes('PRIVATE_MARKER'));
+  }
+  await writeFile(localFile, '{}');
+  await assert.rejects(() => built(t, { projectRoot, env: {} }), /name must be nonempty/);
+  await rm(localFile);
+  await mkdir(localFile);
+  await assert.rejects(() => loadConfig({ projectRoot, env: {} }), /could not be read/);
+  await assert.rejects(() => loadConfig({ privateBuild: true, exampleBuild: true }), /either --private or --example/);
 });
 
 test('private config selects environment before local file and never falls back to public data', async (t) => {
@@ -57,12 +114,21 @@ test('private config selects environment before local file and never falls back 
   await assert.rejects(() => loadConfig({ privateBuild: true, projectRoot, env: { SITE_CONFIG_JSON: '"PRIVATE_MARKER": broken' } }), (error) => !error.message.includes('PRIVATE_MARKER'));
 });
 
-test('Cloudflare private builds require production branch and a build variable', async () => {
+test('Cloudflare customized builds require production branch and strict mode requires a build variable', async (t) => {
   const env = { CF_PAGES: '1', CF_PAGES_BRANCH: 'feature', SITE_CONFIG_JSON: JSON.stringify(fresh()) };
+  await assert.rejects(() => loadConfig({ env }), /production branch/);
   await assert.rejects(() => loadConfig({ privateBuild: true, env }), /production branch/);
   await assert.rejects(() => loadConfig({ privateBuild: true, env: { CF_PAGES: '1', CF_PAGES_BRANCH: 'main' } }), /requires SITE_CONFIG_JSON/);
   env.SITE_PRODUCTION_BRANCH = 'feature';
+  assert.equal((await loadConfig({ env })).name, original.name);
   assert.equal((await loadConfig({ privateBuild: true, env })).name, original.name);
+  const projectRoot = await temp(t);
+  await mkdir(path.join(projectRoot, 'config'));
+  await writeFile(path.join(projectRoot, 'config/site.example.json'), JSON.stringify(fresh()));
+  const preview = { CF_PAGES: '1', CF_PAGES_BRANCH: 'feature' };
+  assert.equal((await loadConfig({ projectRoot, env: preview })).name, original.name);
+  await writeFile(path.join(projectRoot, 'config/site.json'), JSON.stringify(fresh()));
+  await assert.rejects(() => loadConfig({ projectRoot, env: preview }), /production branch/);
 });
 
 test('private build renders only selected display fields without publishing its source config', async (t) => {

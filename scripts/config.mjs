@@ -18,14 +18,39 @@ export async function readJSON(file, label) {
   return parseJSON(text, label);
 }
 
-export async function loadConfig({ privateBuild = false, env = process.env, projectRoot = root } = {}) {
-  if (!privateBuild) return readJSON(path.join(projectRoot, 'config/site.example.json'), 'Public configuration');
-  if (env.CF_PAGES === '1' && env.CF_PAGES_BRANCH !== (env.SITE_PRODUCTION_BRANCH || 'main')) {
-    throw new Error('Private builds are restricted to the configured production branch. Use a public build for previews.');
+export async function resolveConfig({ privateBuild = false, exampleBuild = false, env = process.env, projectRoot = root } = {}) {
+  if (privateBuild && exampleBuild) throw new Error('Choose either --private or --example.');
+  const example = async () => ({
+    config: await readJSON(path.join(projectRoot, 'config/site.example.json'), 'Example configuration'),
+    source: 'example',
+  });
+  if (exampleBuild) return example();
+
+  const checkBranch = () => {
+    if (env.CF_PAGES === '1' && env.CF_PAGES_BRANCH !== (env.SITE_PRODUCTION_BRANCH || 'main')) {
+      throw new Error('Customized builds are restricted to the configured production branch. Use --example for previews.');
+    }
+  };
+  if (privateBuild) checkBranch();
+  if (env.SITE_CONFIG_JSON !== undefined) {
+    checkBranch();
+    return { config: parseJSON(env.SITE_CONFIG_JSON, 'SITE_CONFIG_JSON'), source: 'environment' };
   }
-  if (env.SITE_CONFIG_JSON !== undefined) return parseJSON(env.SITE_CONFIG_JSON, 'SITE_CONFIG_JSON');
-  if (env.CF_PAGES === '1') throw new Error('Private build requires SITE_CONFIG_JSON in the production build environment.');
-  return readJSON(path.join(projectRoot, 'config/site.json'), 'Private configuration (config/site.json)');
+  if (privateBuild && env.CF_PAGES === '1') throw new Error('Private build requires SITE_CONFIG_JSON in the production build environment.');
+
+  let local;
+  try {
+    local = await readFile(path.join(projectRoot, 'config/site.json'), 'utf8');
+  } catch (error) {
+    if (!privateBuild && error.code === 'ENOENT') return example();
+    throw new Error('Private configuration (config/site.json) could not be read.');
+  }
+  checkBranch();
+  return { config: parseJSON(local, 'config/site.json'), source: 'local' };
+}
+
+export async function loadConfig(options) {
+  return (await resolveConfig(options)).config;
 }
 
 function requireText(value, field) {

@@ -5,6 +5,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:example": "node scripts/build.mjs --example",
     "build:production": "node scripts/build.mjs --production",
     "build:private": "node scripts/build.mjs --private",
     "build:private:production": "node scripts/build.mjs --private --production",

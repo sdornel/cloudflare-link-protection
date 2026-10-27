@@ -25,7 +25,7 @@ The public example uses a neutral identity and example-domain destinations. Spec
 - It must remain independent of both public and private config changes. Builds must not rewrite it using deployment data.
 - Commit an explicitly named `config/site.example.json` containing an innocent, neutral sample: generic portfolio content, example-domain destinations, no personal images, and an empty analytics token.
 - Document `src/index.html` as the actual configurable template and the generated `index.html` as the deployment entry point. Apply configuration at build time; do not expose raw JSON through a browser-side fetch.
-- Document copying the sample to ignored `config/site.json`, customizing that copy, building the private page, and supplying the same configuration as a Cloudflare production build variable.
+- Document copying the sample to ignored `config/site.json`, customizing that copy, building the page with the normal command, and supplying the same configuration as a Cloudflare production build variable.
 - Include the standalone example in the publication audit. Do not automatically copy it into public or private deployment output.
 
 ## Configuration and styling
@@ -45,30 +45,33 @@ Support system-font stacks, gradients, shadows, CSS functions, responsive rules,
 
 Browser theme color, color scheme, and favicon colors belong to `appearance`. Icon selection belongs to each link (`none`, `arrow`, or `heart`). The semantic HTML structure and built-in vector path geometry remain implementation details.
 
-## Public and private builds
+## Automatic, example, and strict private builds
 
 | Command | Configuration | Output |
 | --- | --- | --- |
-| `npm run build` | Public example only | `dist/` |
-| `npm run build:production` | Public example with production checks | `dist/` |
+| `npm run build` | Environment input, otherwise local config if present, otherwise sample | `dist/` |
+| `npm run build:production` | Same automatic selection with production checks | `dist/` |
+| `npm run build:example` | Neutral example only, ignoring private inputs | `dist/` |
 | `npm run build:private` | Private environment input or ignored local config | `dist-private/` |
 | `npm run build:private:production` | Private input with production checks | `dist-private/` |
 
-- Public builds must ignore private local files and `SITE_CONFIG_JSON`, even if the variable is present or malformed.
-- Local private builds prefer `SITE_CONFIG_JSON` when set; otherwise read `config/site.json`. An explicitly set empty or invalid variable is an error, not a reason to fall back.
+- Normal builds and `npm run dev` prefer `SITE_CONFIG_JSON` when set, otherwise read `config/site.json` if present, otherwise read `config/site.example.json`. No extra private-build flag is needed to use local settings.
+- Only a missing local file triggers sample fallback. Invalid JSON, invalid fields, unreadable local files, and explicitly set empty or invalid environment variables must fail without falling back or printing private input.
+- Explicit example builds must ignore private local files and `SITE_CONFIG_JSON`, even if present or malformed.
+- Strict local private builds prefer `SITE_CONFIG_JSON` when set; otherwise require `config/site.json`.
 - Private content must be supplied as a complete site config. Theme overrides may be partial.
-- Missing or invalid private configuration must fail the build without silently publishing the neutral demo.
-- On Cloudflare, private builds require `SITE_CONFIG_JSON` and the production branch. Read `CF_PAGES_BRANCH`; compare it with `SITE_PRODUCTION_BRANCH`, defaulting to `main`. Do not use a local-file fallback on Cloudflare.
+- Missing configuration must fail a strict private build without silently publishing the neutral demo.
+- On Cloudflare, any build selecting customized input requires the production branch. Read `CF_PAGES_BRANCH`; compare it with `SITE_PRODUCTION_BRANCH`, defaulting to `main`. Strict private builds also require `SITE_CONFIG_JSON`, without a local-file fallback. Normal builds may use the neutral sample if no customized input is supplied.
 - Production checks require a configured HTTPS origin and `placeholderLinks: false`. Operators remain responsible for replacing placeholders and verifying ownership and reachability of destinations.
 - Do not print raw private JSON, destination values, or parser excerpts in build errors. Report the affected field or configuration source.
-- Generate public and private output in separate directories to reduce accidental publication of the wrong build.
+- Generate normal and explicit example builds into ignored `dist/`; preserve the optional strict private build in ignored `dist-private/`. Building must not rewrite the template, sample config, or standalone example with local data.
 
 Private inputs are private **source data**, not secret website content. Rendered names, destinations, images, styles, and analytics site tokens are visible on the deployed site. Do not put API credentials into display configuration.
 
 ## Images and output isolation
 
 - Use a monogram when no portrait is configured.
-- Public local image paths resolve under `public/images/`; private local image paths resolve under `.private/assets/`.
+- Sample config local image paths resolve under `public/images/`; paths from local or environment site config resolve under `.private/assets/`, including normal builds that automatically select those inputs.
 - Support local WebP, AVIF, PNG, and JPEG files, with descriptive alternative text.
 - Copy only explicitly referenced image assets into output. Never copy an entire private folder, raw config, unrelated files, or operating notes.
 - Reject path traversal, missing assets, and symlinks escaping the selected asset directory.
@@ -115,7 +118,7 @@ Cloudflare account configuration, GitHub application access, DNS changes, domain
 
 ## Acceptance and verification
 
-Both public and private builds must succeed with valid input. Tests must cover private-input isolation, missing/invalid configuration, sanitized errors, branch restrictions, direct links, HTML escaping, theme overrides and rejection cases, selective image copying, path safety, SEO output, analytics opt-in, and default contrast.
+Automatic, explicit example, and strict private builds must succeed with valid input. Tests must cover config precedence, sample fallback only when the local file is absent, example-build isolation from private inputs, missing/invalid configuration, sanitized errors, branch restrictions, direct links, HTML escaping, theme overrides and rejection cases, selective image copying, path safety, SEO output, analytics opt-in, and default contrast.
 
 Verify that `example.html` has no configuration or asset-loading dependency, uses neutral placeholder links, and remains unchanged after configured private builds. The public source audit must include the standalone example and sample JSON.
 

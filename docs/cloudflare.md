@@ -2,7 +2,7 @@
 
 The public repository contains the reusable engine and a neutral demo. It can support two separate Pages projects: one public demo and one customized site with private build inputs.
 
-The root `example.html` is a standalone reference for opening locally; it does not read config and is not copied into build output. Pages serves the generated `index.html`: the public build uses `config/site.example.json`, and the private build uses the production build variable below. Upload/deploy only the chosen output directory.
+The root `example.html` is a standalone reference for opening locally; it does not read config and is not copied into build output. Pages serves the generated `index.html`. The normal `npm run build` selects `SITE_CONFIG_JSON`, then local `config/site.json`, then `config/site.example.json`. Because the local file is ignored, a Git-backed build uses the sample unless you supply the environment variable. Upload/deploy only the chosen output directory.
 
 ## Public demo project
 
@@ -12,15 +12,19 @@ In **Workers & Pages → Create application → Pages → Connect to Git**, sele
 | --- | --- |
 | Framework | None |
 | Production branch | `main` |
-| Build command | `npm run build` |
+| Build command | `npm run build:example` |
 | Output directory | `dist` |
 | Node | 22 or newer; optionally set `NODE_VERSION=22` |
 
-Do not add `SITE_CONFIG_JSON` to this project's environments. The public build also ignores it if accidentally present. Normal preview builds can use the neutral demo.
+Do not add `SITE_CONFIG_JSON` to this project's environments. The explicit example build ignores it if accidentally present and always uses `config/site.example.json`. Preview builds can use the same command.
 
 ## Customized project with private inputs
 
-Create a second Pages project connected to the same repository. Before its first customized deployment:
+Create a second Pages project connected to the same repository.
+
+The normal `npm run build` also supports customized deployment to `dist/` using `SITE_CONFIG_JSON`. The strict commands below keep the existing `dist-private/` output and fail if the input is missing, so they are useful for a project that must always publish its customized page. Both modes restrict customized Cloudflare builds to the configured production branch.
+
+Before its first customized deployment:
 
 1. Open **Settings → Variables and Secrets** (some dashboards label it **Environment variables**). Select **Production**.
 2. Add **`SITE_CONFIG_JSON`**. Paste the full JSON from your ignored `config/site.json` file as the value, without shell quotes or a `SITE_CONFIG_JSON=` prefix. Choose **Encrypt**. This must be available to the build, not just to runtime Functions. Never print it in a build command. See [build variables](https://developers.cloudflare.com/pages/configuration/build-configuration/) and [encrypted variables](https://developers.cloudflare.com/pages/functions/bindings/#secrets).

@@ -1,6 +1,6 @@
 # Static Profile Page
 
-A configurable, mobile-first profile and links page built with HTML and a dependency-free Node.js generator. Its public demo is a neutral portfolio. Separate build modes let the same code power a customized site without committing its identity, destinations, or images to the source repository.
+A configurable, mobile-first profile and links page built with HTML and a dependency-free Node.js generator. It uses your ignored local configuration when present and otherwise shows a neutral portfolio sample. The same code powers a customized site without committing its identity, destinations, or images to the source repository.
 
 See [SPEC.md](SPEC.md) for required behavior, configuration boundaries, publication rules, and acceptance criteria.
 
@@ -21,7 +21,15 @@ npm run build
 npm run dev
 ```
 
-These commands build the checked-in neutral sample into `dist/index.html` and serve it at **http://localhost:4173**. You can also open that generated file directly. Rebuild and refresh after changes.
+`npm run build` generates `dist/index.html`. `npm run dev` builds it and serves it at **http://localhost:4173**. You can also open that generated file directly. Rebuild and refresh after changes.
+
+The build selects the first available configuration:
+
+1. `SITE_CONFIG_JSON`, if set (for Cloudflare or other build environments).
+2. `config/site.json`, if present (your ignored local settings).
+3. `config/site.example.json`, otherwise (the committed neutral sample).
+
+An existing but invalid config fails the build instead of falling back. To force the neutral sample even with local settings present, run `npm run build:example`; it also writes `dist/index.html`. The standalone `example.html` always stays neutral.
 
 ## Configure everything
 
@@ -32,11 +40,11 @@ These commands build the checked-in neutral sample into `dist/index.html` and se
 | `config/theme.json` | All page CSS: variables, selectors, responsive rules, animations | Yes |
 | `config/site.json` | Your deployment's full content and style overrides | No |
 | `.private/assets/` | Your local deployment images | No |
-| `dist/`, `dist-private/` | Generated public/private site files | No |
+| `dist/`, `dist-private/` | Generated site files | No |
 
 For the configurable `index.html`, the theme compiler turns JSON into one static stylesheet. Its page styling stays in configuration. The standalone `example.html` deliberately embeds its own fixed styling so it opens independently. See [configuration and styling](docs/configuration.md) for layout, color, typography, border, spacing, animation, and responsive examples.
 
-To configure your own `index.html`, copy `config/site.example.json` to `config/site.json` if that file does not already exist. Edit the ignored copy with your name, links, images, and appearance; preserve an existing private configuration. Content is required in full, and `styles` may selectively override the shared theme. A private build never silently falls back to the sample.
+To configure your own `index.html`, copy `config/site.example.json` to `config/site.json` if that file does not already exist. Edit the ignored copy with your name, links, images, and appearance; preserve an existing private configuration. Content is required in full, and `styles` may selectively override the shared theme.
 
 **The real file belongs at `config/site.json`, next to `config/site.example.json`.** `site.json` is ignored by Git; the example file is committed. On a fresh clone, create the local file without overwriting existing settings:
 
@@ -45,11 +53,11 @@ cp -n config/site.example.json config/site.json
 ```
 
 ```sh
-npm run build:private
-npm run dev:private
+npm run build
+npm run dev
 ```
 
-Open `dist-private/index.html` directly, or use the local server. Public builds ignore `config/site.json` and `SITE_CONFIG_JSON`, even when present. Private builds read `SITE_CONFIG_JSON` first, then the ignored `config/site.json`. Cloudflare private builds require the variable and the configured production branch because Git does not upload your real config.
+Open `dist/index.html` directly, or use the local server. Your local settings are now selected automatically. For deployments that must fail when customized input is missing, the existing `build:private` / `dev:private` commands remain available and use `dist-private/`. On Cloudflare, this strict mode requires the production build variable and the configured production branch because Git does not upload your real config.
 
 Commit the example HTML, sample JSON, theme, template, and application code. Keep your real config and generated `index.html` out of Git. Deploy only the selected build output; the root `example.html` is not copied into either deployment automatically.
 
@@ -59,7 +67,8 @@ Connect this public GitHub repository to Pages. Choose framework **None**, Node.
 
 | Site | Build command | Output | Build variables |
 | --- | --- | --- | --- |
-| Public portfolio demo | `npm run build` | `dist` | None |
+| Public portfolio demo | `npm run build:example` | `dist` | None |
+| Automatic configuration | `npm run build` | `dist` | Optional production-only `SITE_CONFIG_JSON`; otherwise sample |
 | Customized demo | `npm run build:private` | `dist-private` | Production-only `SITE_CONFIG_JSON` |
 | Configured live site | `npm run build:private:production` | `dist-private` | Production-only `SITE_CONFIG_JSON` |
 
@@ -71,7 +80,7 @@ Use separate Pages projects for the public demo and customized deployment. Keep 
 
 - No runtime framework, client-side hydration, database, or install-time dependencies.
 - Direct HTTPS links work without JavaScript. The optional analytics beacon is the only visitor script.
-- Separate public and private output directories reduce accidental publication of the wrong build.
+- Automatic config selection for normal builds, an explicit neutral example build, and an optional strict private build in `dist-private/`.
 - Declarative styles support responsive rules and animations while rejecting stylesheet injection and remote CSS loads.
 - Text is escaped, URLs validated, and only referenced image files are copied. Symlinks cannot escape the chosen asset directory.
 - Canonical/Open Graph metadata, a sitemap for configured sites, a real 404 page, CSP, and accessible defaults are generated.

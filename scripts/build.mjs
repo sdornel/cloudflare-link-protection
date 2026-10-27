@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { escapeHTML, httpsURL, loadConfig, readJSON, root, validateConfig } from './config.mjs';
+import { escapeHTML, httpsURL, resolveConfig, readJSON, root, validateConfig } from './config.mjs';
 import { compileTheme } from './theme.mjs';
 
 export { root, escapeHTML, validateConfig } from './config.mjs';
@@ -34,18 +34,23 @@ async function imageAsset(value, field, assetDirectory) {
   }
 }
 
-export async function build({ config, privateBuild = false, production = false, env = process.env,
-  outDir = path.join(root, privateBuild ? 'dist-private' : 'dist'),
-  assetDirectory = path.join(root, privateBuild ? '.private/assets' : 'public/images'),
+export async function build({ config, privateBuild = false, exampleBuild = false, production = false, env = process.env,
+  projectRoot = root,
+  outDir = path.join(projectRoot, privateBuild ? 'dist-private' : 'dist'),
+  assetDirectory,
 } = {}) {
-  config ??= await loadConfig({ privateBuild, env });
+  if (privateBuild && exampleBuild) throw new Error('Choose either --private or --example.');
+  const selected = config == null ? await resolveConfig({ privateBuild, exampleBuild, env, projectRoot }) : { config, source: 'provided' };
+  config = selected.config;
+  const privateAssets = privateBuild || ['local', 'environment'].includes(selected.source);
+  assetDirectory ??= path.join(projectRoot, privateAssets ? '.private/assets' : 'public/images');
   validateConfig(config, { production });
-  const baseTheme = await readJSON(path.join(root, 'config/theme.json'), 'Theme configuration');
+  const baseTheme = await readJSON(path.join(projectRoot, 'config/theme.json'), 'Theme configuration');
   const css = compileTheme(baseTheme, config.styles ?? {});
   const profile = await imageAsset(config.profile.image, 'profile.image', assetDirectory);
   const share = await imageAsset(config.seo.image, 'seo.image', assetDirectory);
-  const template = await readFile(path.join(root, 'src/index.html'), 'utf8');
-  let headers = await readFile(path.join(root, 'public/_headers'), 'utf8');
+  const template = await readFile(path.join(projectRoot, 'src/index.html'), 'utf8');
+  let headers = await readFile(path.join(projectRoot, 'public/_headers'), 'utf8');
   const imageOrigins = [...new Set([profile?.origin, share?.origin].filter(Boolean))];
   if (imageOrigins.length) headers = headers.replace("img-src 'self';", `img-src 'self' ${imageOrigins.join(' ')};`);
   const assetVersion = createHash('sha256').update(css).digest('hex').slice(0, 12);
@@ -87,14 +92,15 @@ export async function build({ config, privateBuild = false, production = false, 
     writeFile(path.join(outDir, 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="32" fill="${config.appearance.faviconBackground}"/><text x="32" y="41" text-anchor="middle" font-family="Arial,sans-serif" font-size="25" fill="${config.appearance.faviconText}">${escapeHTML(config.profile.initials)}</text></svg>\n`),
   ]);
   if (indexable) await writeFile(path.join(outDir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeHTML(siteURL)}</loc></url></urlset>\n`);
-  return { outDir, privateBuild, indexable, htmlBytes: Buffer.byteLength(html), cssBytes: Buffer.byteLength(css) };
+  return { outDir, privateBuild, configSource: selected.source, indexable, htmlBytes: Buffer.byteLength(html), cssBytes: Buffer.byteLength(css) };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    if (process.argv.slice(2).some((arg) => !['--private', '--production'].includes(arg))) throw new Error('Supported build options: --private, --production.');
-    const result = await build({ privateBuild: process.argv.includes('--private'), production: process.argv.includes('--production') });
-    console.log(`Built ${result.privateBuild ? 'dist-private' : 'dist'} (${result.htmlBytes} bytes HTML, ${result.cssBytes} bytes CSS). ${result.indexable ? 'Search indexing enabled.' : 'Demo uses noindex.'}`);
+    if (process.argv.slice(2).some((arg) => !['--private', '--example', '--production'].includes(arg))) throw new Error('Supported build options: --private, --example, --production.');
+    const result = await build({ privateBuild: process.argv.includes('--private'), exampleBuild: process.argv.includes('--example'), production: process.argv.includes('--production') });
+    const source = { example: 'config/site.example.json', local: 'config/site.json', environment: 'SITE_CONFIG_JSON' }[result.configSource];
+    console.log(`Built ${result.privateBuild ? 'dist-private' : 'dist'} using ${source} (${result.htmlBytes} bytes HTML, ${result.cssBytes} bytes CSS). ${result.indexable ? 'Search indexing enabled.' : 'Demo uses noindex.'}`);
   } catch (error) {
     console.error(`Build failed: ${error.message}`);
     process.exitCode = 1;
