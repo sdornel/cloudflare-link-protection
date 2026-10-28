@@ -16,6 +16,6 @@ export async function neutralPreview() {
     await build({ exampleBuild: true, outDir: directory });
     server = createPreviewServer(directory);
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
-    return { directory, url: `http://127.0.0.1:${server.address().port}`, close };
+    return { directory, url: `http://127.0.0.1:${server.address().port}/example/`, close };
   } catch (error) { await close(); throw error; }
 }

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { readJSON, root } from './config.mjs';
 
 // Explicit source roots also make the pre-Git review possible without including local artifacts.
-export const sourceRoots = ['.gitignore', 'README.md', 'SPEC.md', 'example.html', 'package.json', 'package-lock.json', 'LICENSE', 'CONTRIBUTING.md', 'playwright.config.mjs', 'wrangler.jsonc', '.github', 'config', 'docs', 'public', 'scripts', 'src', 'tests'];
+export const sourceRoots = ['.gitignore', 'README.md', 'SPEC.md', 'example.html', 'more-soon.html', 'package.json', 'package-lock.json', 'LICENSE', 'CONTRIBUTING.md', 'playwright.config.mjs', 'wrangler.jsonc', '.github', 'config', 'docs', 'public', 'scripts', 'src', 'tests'];
 const forbidden = /(?:^|\/)(?:\.private|dist(?:-private)?|node_modules|\.aws|\.agents|\.codex|\.wrangler|\.env(?:\..*)?|\.dev\.vars(?:\..*)?|site(?:\.config)?\.json(?:\.[^/]*)?)(?:\/|$)|(?:^|\/)(?:test-results|playwright-report|browser-output|playwright\/\.auth)(?:\/|$)|\.(?:zip|log|pem|key|p12|pfx)$/i;
 
 export async function publicFiles(projectRoot = root) {
@@ -47,11 +47,13 @@ export async function auditPublic(projectRoot = root) {
     const privateConfig = await readJSON(privatePath, 'Local private configuration');
     const publicConfig = await readJSON(path.join(projectRoot, 'config/site.example.json'), 'Public configuration');
     const displayStrings = (config) => [
-      config.name, config.bio, config.description, config.siteUrl, config.seo?.title,
+      config.name, config.bio, config.description, config.siteUrl, config.profilePath, config.profilePath?.slice(1), config.seo?.title,
       config.profile?.image, config.seo?.image, config.analytics?.cloudflareToken, config.analytics?.ga4MeasurementId,
+      ...Object.values(config.landing ?? {}).filter(value => typeof value === 'string'),
       ...[config.primaryLink, ...(config.secondaryLinks ?? [])].flatMap((link) => [link?.label?.toLowerCase() === 'instagram' ? undefined : link?.label, link?.url]),
     ].filter((value) => typeof value === 'string' && value.length >= 8);
-    const shared = new Set(displayStrings(publicConfig));
+    const landingDefaults = await readJSON(path.join(projectRoot, 'config/landing.example.json'), 'Public landing defaults');
+    const shared = new Set(displayStrings({ ...publicConfig, landing: landingDefaults }));
     markers.push(...displayStrings(privateConfig).filter((value) => !shared.has(value)));
     privateChecked = true;
   }

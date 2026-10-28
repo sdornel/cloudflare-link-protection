@@ -24,11 +24,13 @@ Replace the hostname and documentation-only IP below with your own hostname and 
 ```text
 (http.host eq "links.example.com"
  and ip.src in {192.0.2.123}
- and http.request.uri.path in {"/" "/index.html"}
+ and http.request.uri.path in {"/" "/index.html" "/example" "/example/" "/example/index.html" "/example/more-soon" "/example/more-soon/" "/example/more-soon/index.html" "/sample-creator" "/sample-creator/" "/sample-creator/index.html"}
  and http.request.method in {"GET" "HEAD"})
 ```
 
 Choose **Managed Challenge**, deploy, and inspect matching events. This is manual targeting, not automatic bot scoring. Shared or reassigned IP addresses can cause false positives; remove temporary rules when no longer useful. [Creating rules](https://developers.cloudflare.com/waf/custom-rules/create-dashboard/).
+
+Replace `/sample-creator` with the actual configured profile path, keeping its slash and index variants. A rule matching only `/` does not cover a nested creator page. This example targets document routes so that images, stylesheets, and modules can load normally. It does not challenge the entire site or activate automatically for all suspected bots.
 
 Do not use old threat-score recipes: `cf.threat_score` now always returns zero. [Threat score](https://developers.cloudflare.com/ruleset-engine/rules-language/fields/reference/cf.threat_score/). Enterprise Bot Management scores are not part of the free configuration. [Feature interoperability](https://developers.cloudflare.com/waf/feature-interoperability/).
 
@@ -59,6 +61,6 @@ For repository publication and history checks, see [configuration](configuration
 
 ## Native schemes and optional analytics
 
-Configured destinations remain HTTPS anchors. Only the trusted strategy builder constructs custom launch schemes after URL validation. Incoming query parameters never select arbitrary automatic destinations. The `_lp_handoff` marker only prevents repeated attempts and grants no access.
+Configured external destinations remain HTTPS anchors; the built-in local More soon link navigates directly. Only the trusted strategy builder constructs custom launch schemes after URL validation. Incoming query parameters never select arbitrary automatic destinations. The `_lp_handoff` marker only prevents repeated attempts and grants no access.
 
 Runtime JSON includes an explicit public allowlist and escapes HTML-sensitive characters. Client modules remain external; GA4 origins are added to CSP only when configured. No `unsafe-inline` or `unsafe-eval` permission is added. A different browser has separate storage and may require challenge clearance again. A handoff cannot rescue a page whose challenge prevented the application from loading.

@@ -1,8 +1,11 @@
 # Implementation and verification status
 
-Updated 2026-10-27. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
+Updated 2026-10-28. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
 
 ## Implemented
+
+- The hosted and standalone examples use generic personal copy with no demo notice or publishing panel. Setup instructions remain in documentation; the checked-in screenshots predate this copy/footer update.
+- All three example buttons open a shared “More soon” page and can return to the example. Hosted builds emit `/example/more-soon/`; the offline example has a generated `more-soon.html` companion. The exact local placeholder route is allowed only in placeholder mode and never uses native handoff. Focused build/routing verification after this change: 27 tests passed; browser execution remains pending.
 
 - Static rendering, legacy configuration compatibility, separate public/private builds, selective assets, safe public runtime options, and a shared neutral example renderer.
 - Native iOS/Android strategies, direct fallbacks, manual assistance, bounded automatic iOS opening, and reload/return guards.
@@ -11,6 +14,16 @@ Updated 2026-10-27. The current release scope supports direct/native navigation.
 - Browser integration tests exercise the real app and controls using synthetic builds with generated CSP. Neutral mobile/desktop screenshots are included in README, and an isolated performance command records reproducible lab measurements.
 - The entry animation keeps content visible from its first frame. Its previous zero-opacity start prevented Chromium from reporting a contentful paint in the measured build; the small translation and reduced-motion behavior remain.
 - Workers Static Assets configuration, pinned Wrangler tooling, a deployment dry-run command, and current setup instructions. Private build branch checks support Workers and existing Pages deployments.
+- Optional `profilePath` generates a creator below the root alongside a separate platform landing at `/` and neutral demo at `/example/`. The provisional homepage has independent JSON content/styling, optional private `landing` overrides, and a working demo CTA. Legacy root-profile configs retain their behavior. Slugs and private landing branding are included in publication audits.
+
+## Landing and profile path verification — 2026-10-28
+
+The path change is locally implemented; no new Cloudflare deployment or live path verification was performed in this session. The earlier hosted-demo evidence below refers to the previous release.
+
+- Node 24.18.1, tests run without process isolation: 53 discovered, 51 passed, one skipped because Git subprocesses are unavailable, and one existing Git directory-alias test failed at `spawnSync git` with `EPERM`. This is not a fully passing suite on this host. Routing/build coverage passes for landing/demo/creator isolation, private overrides, invalid configuration preserving old output, reserved paths, legacy roots, real asset reads, SEO, preview handler HTTP behavior, query preservation, and handoff guards.
+- Private local and simulated Workers production-branch environment builds produce identical HTML for all three pages. Input values were not printed. The standalone neutral example still matches the shared renderer. The explicit example build produces a neutral landing and `/example/`, ignoring private input.
+- Public-source audit passed against ignored local private fields and operator audit terms. Node could not inspect the Git index; separate shell Git checks confirmed the local config, private notes, and generated output are ignored and untracked.
+- Browser regression coverage includes nested assets, automatic-handoff reload guards, and the homepage-to-demo journey at 320px with JavaScript enabled and disabled. Syntax checks passed, but browser execution is unavailable because Playwright is not installed here. Screenshots/performance now target the hosted demo at `/example/`; new browser measurements, visual review of the landing, and Workers routing/deployment checks remain pending.
 
 ## Recorded verification
 

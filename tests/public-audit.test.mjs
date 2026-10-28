@@ -41,6 +41,29 @@ test('real site.json stays out of public exports while its values are checked fo
   await assert.rejects(() => auditPublic(dir), (error) => error.message.includes('README.md') && !error.message.includes(marker));
 });
 
+test('private profile slugs are audited even when copied without their leading slash', async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'profile-slug-audit-test-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await copyPublicSource(dir);
+  const slug = randomUUID();
+  await writeFile(path.join(dir, 'config/site.json'), JSON.stringify({ profilePath: `/${slug}` }));
+  assert.equal((await auditPublic(dir)).privateChecked, true);
+  await appendFile(path.join(dir, 'README.md'), `\n${slug}\n`);
+  await assert.rejects(() => auditPublic(dir), error => error.message.includes('README.md') && !error.message.includes(slug));
+});
+
+test('private landing branding is audited while shared default landing copy is allowed', async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'landing-brand-audit-test-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await copyPublicSource(dir);
+  const defaults = JSON.parse(await readFile(path.join(dir, 'config/landing.example.json'), 'utf8'));
+  const marker = randomUUID();
+  await writeFile(path.join(dir, 'config/site.json'), JSON.stringify({ landing: { ...defaults, name: marker } }));
+  assert.equal((await auditPublic(dir)).privateChecked, true);
+  await appendFile(path.join(dir, 'README.md'), `\n${marker}\n`);
+  await assert.rejects(() => auditPublic(dir), error => error.message.includes('README.md') && !error.message.includes(marker));
+});
+
 test('Git ignores private config, assets, outputs and archives, and forced tracking is detected', async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'profile-index-test-'));
   t.after(() => rm(dir, { recursive: true, force: true }));

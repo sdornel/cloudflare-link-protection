@@ -2,15 +2,17 @@
 
 ## Standalone example versus the real page
 
-`example.html` is a fixed, standalone preview with embedded CSS. Open it directly in a browser. It does not load JSON, import a stylesheet, run scripts, or depend on the build system. Ordinary builds leave it unchanged. The explicit `npm run example:refresh` command regenerates it from the neutral sample, shared renderer, and theme.
+`example.html` is a fixed, standalone preview with embedded CSS. Open it directly in a browser. It does not load JSON, import a stylesheet, run scripts, or depend on the build system. Keep its generated `more-soon.html` companion in the same folder: all three buttons open that page, which links back to `example.html`. Ordinary builds leave both unchanged; `npm run example:refresh` regenerates both from neutral inputs and the shared theme.
 
-`src/index.html` is the configurable page template, not a ready-to-open page. A normal build turns it into `dist/index.html`, selecting `SITE_CONFIG_JSON` first, then `config/site.json` if it exists, then the neutral `config/site.example.json`. Configuration is applied at build time, so the deployed page needs no runtime JSON request. The raw config is not copied to the output.
+Both the hosted `/example/` page and standalone example use a generic personal bio, without a demo notice or publishing panel. The hosted buttons all lead to `/example/more-soon/`, a static **More soon** page with a back link. `placeholderLinks` stays enabled and `previewNote` is empty; both pages remain noindex. Publishing instructions are in [Cloudflare setup](cloudflare.md).
+
+`src/index.html` is the profile template, not a ready-to-open page. The build selects `SITE_CONFIG_JSON` first, then `config/site.json` if it exists, then the neutral `config/site.example.json`. The demo is generated at `example/index.html`; a configured profile uses its `profilePath`. Sample builds and non-root creator builds generate a distinct homepage from `src/landing.html`. Configuration is applied at build time; raw config is never copied to the output.
 
 To create your own page:
 
 1. Copy `config/site.example.json` to `config/site.json` if you do not already have a private config.
 2. Edit the copy's content, destinations, appearance, and optional `styles` overrides.
-3. Run `npm run build`, then open `dist/index.html` (or run `npm run dev` for a local server).
+3. Run `npm run dev` and open the selected profile path at `http://localhost:4173`. The neutral demo is at `/example/`.
 4. Rebuild after editing. For Cloudflare, provide the same JSON in the production-only `SITE_CONFIG_JSON` build variable.
 
 The checked-in sample must remain neutral and contain no real deployment identity, destination links, personal images, or analytics token. `example.html` is also included in the public-source audit. Neither regular nor private builds rewrite it or automatically include it in deployed output.
@@ -26,6 +28,8 @@ config/
   site.example.json   # committed neutral sample
   site.json           # optional local settings; ignored, overrides the sample
   theme.json          # committed default theme
+  landing.example.json # committed neutral homepage copy
+  landing.theme.json   # committed homepage styling
 ```
 
 Create `config/site.json` by copying the sample on a fresh clone; do not overwrite an existing config. `npm run build` reads it unless `SITE_CONFIG_JSON` is set. If neither is available, the sample is used. Malformed JSON, invalid settings, or an unreadable file fail the build; only a missing file triggers the fallback. An explicitly set empty or invalid environment variable also fails instead of falling back.
@@ -36,6 +40,8 @@ Create `config/site.json` by copying the sample on a fresh clone; do not overwri
 | --- | --- |
 | `name`, `bio`, `description` | Visible identity and page description |
 | `siteUrl` | Final HTTPS origin; empty for the demo |
+| `profilePath` | `/` for legacy root profiles; a path such as `/sample-creator` keeps the platform landing at `/`; `/example` is reserved |
+| `landing` | Optional private overrides for homepage content, appearance, and styling |
 | `placeholderLinks` | Keeps unfinished sites out of search indexing and shows `previewNote` |
 | `profile.initials`, `profile.image`, `profile.alt` | Monogram or portrait and alternative text |
 | `primaryLink` | `label`, direct HTTPS `url`, and `icon` |
@@ -46,7 +52,49 @@ Create `config/site.json` by copying the sample on a fresh clone; do not overwri
 | `appearance` | Browser theme color, color scheme, favicon colors |
 | `styles` | Overrides to the shared `config/theme.json` |
 
-Icons are `none`, `arrow`, or `heart`. Links are general HTTPS destinations, with no platform-specific code. To use a final site, replace example links, set `siteUrl`, and set `placeholderLinks: false`. The production build rejects an unset origin or placeholder mode; it cannot verify ownership or availability of destinations.
+Icons are `none`, `arrow`, or `heart`. Destinations require HTTPS except for the exact built-in placeholder `/example/more-soon/`, permitted only when `placeholderLinks` is true. That internal route always uses direct navigation; it does not attempt browser handoff. Other relative paths, query variations, and protocol-relative URLs are rejected. To use a final site, replace placeholder links with HTTPS destinations, set `siteUrl`, and set `placeholderLinks: false`. The production build rejects an unset origin or unfinished placeholders; it cannot verify ownership or availability of destinations.
+
+## Profile paths
+
+To publish a profile at `https://example.com/sample-creator`, merge these fields into your complete ignored `config/site.json` or `SITE_CONFIG_JSON` build secret:
+
+```json
+{
+  "siteUrl": "https://example.com",
+  "profilePath": "/sample-creator"
+}
+```
+
+Keep `siteUrl` as the origin. `profilePath` is `/` or one lowercase slug of 1–64 letters, digits, or hyphens, beginning with a letter or digit. `example`, `assets`, and `images` are reserved; nested paths, trailing slashes in the config, queries, encoded characters, and fragments are rejected. Omit the field or use `/` to preserve the original root-profile behavior.
+
+A non-root build generates the platform landing at `index.html`, the neutral demo at `example/index.html`, and the configured page at `sample-creator/index.html`. Each has its own stylesheet and assets. The root does not list the creator or inherit their settings. Demo and creator profiles share the renderer. The existing build and deployment commands publish the whole output directory. No new DNS record, Worker, runtime router, or database is needed. This version supports one configured creator alongside the landing and demo per build.
+
+Run `npm run dev:private` and visit `http://localhost:4173/sample-creator`. Workers and the preview server normalize directory pages to a trailing slash, preserving the query string. Both `/sample-creator` and `/example` work as entry URLs. Profile assets use explicit path prefixes and SEO uses the canonical trailing slash. Robots and sitemap files stay at the origin root. A production-ready profile can be indexed while the provisional landing and neutral demo remain noindex; placeholder profiles remain noindex too.
+
+Keep the real slug private in source just like the creator name. The deployed URL is public. Changing the slug removes the old generated path on the next build; no old-URL redirect is created. Renaming a live profile needs an intentional migration for existing bio links. Nested pages require HTTP/HTTPS for correct asset resolution; use the preview server rather than opening their files directly.
+
+## Platform landing page
+
+The initial homepage contains a brand, short introduction, and **View an example** link to `/example/`. It has no signup, pricing, creator directory, analytics, or browser-handoff scripts. It remains `noindex, follow` while its purpose is provisional. Existing private configs with a root profile keep that page; choose a non-root `profilePath` to enable the landing.
+
+Public defaults live in `config/landing.example.json`; all homepage CSS lives in `config/landing.theme.json`. To customize a deployment privately, merge this into the complete site config:
+
+```json
+{
+  "landing": {
+    "name": "Sample Studio",
+    "initials": "S",
+    "headline": "A home for your world.",
+    "description": "Projects, ideas, and the places to find them.",
+    "ctaLabel": "See an example",
+    "styles": { "variables": { "accent": "#245c50", "accent-hover": "#194337" } }
+  }
+}
+```
+
+Optional text fields are `name`, `initials`, `eyebrow`, `headline`, `description`, `ctaLabel`, and `footer`. Text must be nonempty and at most 500 characters; use a short monogram for `initials`. A newline in `headline` creates a line break. `appearance` accepts the same browser theme/color-scheme/favicon fields as the creator config, with omitted values retained from the landing defaults. `styles` uses the same validated JSON theme format below, applied only to the landing theme. Other keys are rejected.
+
+The CTA destination stays `/example/`. Creator content and styling are never implicitly copied to the homepage. Landing overrides never affect the neutral demo or creator page. Keep real platform branding in ignored config; the source audit checks it too. Explicit example builds ignore all private overrides. Update the complete Cloudflare build secret after editing your private landing config and redeploy all output files together.
 
 ## Styling
 
@@ -89,7 +137,7 @@ Keep reduced-motion and keyboard-focus rules intact unless you provide accessibl
 
 For the public demo, `/images/portrait.webp` reads `public/images/portrait.webp`. That directory is public source: only put assets intended for the repository there.
 
-When the selected config comes from `config/site.json` or `SITE_CONFIG_JSON`, the same path reads `.private/assets/portrait.webp`. Only referenced images are copied into `dist/images/` (or `dist-private/images/` with `build:private`); unrelated files and configuration are never copied. Supported local formats: WebP, AVIF, PNG, JPEG. Use a compact square portrait, and optionally a separate sharing image.
+When the selected config comes from `config/site.json` or `SITE_CONFIG_JSON`, the same path reads `.private/assets/portrait.webp`. Only referenced images are copied into the page's `images/` directory inside `dist/` (or `dist-private/` with `build:private`); a nested profile uses `sample-creator/images/`. Unrelated files and configuration are never copied. Supported local formats: WebP, AVIF, PNG, JPEG. Use a compact square portrait, and optionally a separate sharing image.
 
 Cloudflare cannot read ignored files from your computer. For Git-backed private builds, use an HTTPS image URL hosted outside this repository, or leave the monogram. The build permits each configured image origin in the page's CSP. The URL must be publicly readable by visitors; it is not a secret file URL. It also results in a visitor request to that image host. No automatic image download/upload service is included.
 

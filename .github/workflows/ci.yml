@@ -16,7 +16,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm test
       - run: npm run build
-      - run: npm run example:refresh && git diff --exit-code -- example.html
+      - run: npm run example:refresh && git diff --exit-code -- example.html more-soon.html
       - run: npm run check:public
   browser:
     runs-on: ubuntu-latest

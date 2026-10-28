@@ -77,6 +77,24 @@ The earlier specification records baseline verification of **18 tests discovered
 - Placeholder links remain clickable; unfinished pages remain `noindex, follow`.
 - Canonical metadata and sitemap generation still depend on valid deployment settings.
 
+### Profile path deployment
+
+The operator may publish the configured creator at a path on the existing domain, for example `https://example.com/sample-creator`. This is a URL path, not a DNS subdomain. Optional `profilePath` defaults to `/` for backward compatibility. A non-root value is a single lowercase slug (`/[a-z0-9][a-z0-9-]{0,63}`); reject reserved paths `example`, `assets`, and `images`, traversal, encoded characters, nested paths, queries, and fragments without logging the private value.
+
+Every build emits the neutral profile demonstration at `/example`. Sample builds and non-root creator builds emit a distinct platform landing page at `/`, with a short introduction and working link to `/example/`. The landing page is a modest, editable starting point while its longer-term purpose is undecided: no registration, pricing, invented customer claims, creator directory, or unimplemented product controls. Existing customized configs with an omitted or root `profilePath` keep their root profile for compatibility, and still receive `/example`. Non-root builds additionally emit the configured creator at its selected path.
+
+The hosted example and standalone `example.html` use a generic personal bio, with no profession-specific copy, visible demo notice, or embedded Cloudflare publishing panel. All three example buttons lead to the same local “More soon” page at `/example/more-soon/`, with a back link to `/example/`. This page uses the example's theme, remains noindex, and works without JavaScript. The standalone snapshot links to a sibling generated `more-soon.html` that links back to `example.html`; both work directly from disk. Setup instructions remain in repository documentation.
+
+Allow the exact built-in placeholder URL `/example/more-soon/` only while `placeholderLinks` is true. Other configured destinations still require HTTPS, and production checks reject unresolved placeholders. Internal placeholder links always use direct navigation, even in Instagram; they do not trigger a native handoff. Do not introduce general relative URL support or change creator destinations. Generate the placeholder page in every build alongside the example, using public sample inputs only.
+
+Landing defaults come from committed neutral `config/landing.example.json`, styling from `config/landing.theme.json`, and semantic markup from `src/landing.html`. An optional `landing` object in the ignored site config/build secret overrides only landing content, appearance, and styling. No creator content, links, styling, analytics settings, or directory entry are inherited. The site's HTTPS origin may supply a root canonical URL; the provisional landing page remains noindex. The demo always uses public sample inputs and never private landing overrides. Keep real platform branding, creator identity, and paths in ignored configuration or the build secret, never public source. This version supports one configured creator alongside the landing and demo per deployment; a creator registry, login, and multiple configured profiles in one build are outside this change.
+
+Generate actual HTML files and path-specific assets; no client-side routing or runtime config fetch. Support both the clean path and its trailing-slash form. Workers uses its default HTML handling to normalize a directory index to the trailing-slash URL; canonical metadata uses that trailing slash. Use explicit path-prefixed asset URLs for nested pages so either entry form loads styling, images, and enhancements. Preserve queries through routing and native browser handoff. Unknown paths return the neutral 404 page, never an unrelated creator page. The preview server must exercise the same directory-index behavior.
+
+Compile and validate all pages before replacing build output. Root-level security headers cover every page; the CSP permits only the configured image/analytics origins required by the generated pages. Keep robots and sitemap files at the origin root; list only indexable profile URLs, with noindex retained for placeholders, the provisional landing, and the neutral sample. The strict production check applies to the configured creator, not the intentional demo or landing. The standalone example and explicit example build remain neutral and independent of private input. Hosted demo screenshots and profile browser tests target `/example/`.
+
+Acceptance: old root configs still work; root, demo, and nested profile serve their distinct content and styles; the landing CTA opens the functional neutral demo with or without JavaScript; `/example` cannot be overwritten by a creator; slash normalization preserves queries; images/scripts/SEO resolve correctly; invalid paths or landing settings fail before replacing output; unknown paths return 404; private identities remain absent from public source and the demo. Creator settings never leak into the landing, and explicit landing overrides never leak into the creator. Document configuration, local preview, and deployment.
+
 ## 3. Architecture and repository layout
 
 Use progressive enhancement: the HTML document is a complete links page before visitor JavaScript runs. The browser-opening module decides how to attempt a navigation; it does not own profile rendering or invent destinations.
@@ -86,11 +104,14 @@ The existing `config/site.example.json`, ignored `config/site.json`, and `config
 ```text
 config/
   site.example.json             committed neutral example
+  landing.example.json          committed neutral landing content
+  landing.theme.json            configurable landing styling
   site.schema.json              editor schema for the documented config
   site.json                     ignored local deployment config
   theme.json                    committed shared styling
 src/
   index.html                    shared semantic template
+  landing.html                  platform landing template
   client/
     app.js                      small initialization and event wiring layer
     browser-context.js          conservative environment detection
@@ -121,6 +142,7 @@ docs/
 tests/                          unit and build integration tests
 .github/workflows/ci.yml         public-input-only checks
 example.html                    committed standalone neutral snapshot
+more-soon.html                  generated standalone example destination
 SPEC.md                         this document
 README.md                       product and contributor entry point
 LICENSE                         MIT license for reusable source
@@ -164,16 +186,18 @@ Only `ENOENT` for the local file permits normal-build fallback. An explicitly se
 | --- | --- |
 | `name`, `bio`, `description` | Required plain text; escaped on output |
 | `siteUrl` | Empty in preview, otherwise HTTPS origin without path/query/fragment |
+| `profilePath` | Optional `/` (legacy default) or one lowercase slug; non-root builds retain the platform landing at `/`; `/example` is reserved |
+| `landing` | Optional overrides for landing name, initials, eyebrow, headline, description, CTA label, footer, appearance, and JSON styles; demo stays independent |
 | `placeholderLinks`, `previewNote` | Explicit unfinished-site behavior and optional visitor copy |
 | `profile` | Initials, optional image, descriptive alternative text |
-| `primaryLink` | Required primary label, HTTPS URL, and optional icon |
+| `primaryLink` | Required primary label, HTTPS URL (or the built-in route in placeholder mode), and optional icon |
 | `secondaryLinks` | Ordered links with explicit `enabled` boolean |
 | `seo` | Title and optional sharing image/alternative text |
 | `appearance` | Browser theme, color scheme, favicon colors |
 | `styles` | Partial recursive overrides to shared theme |
 | `analytics.cloudflareToken` | Empty or valid public site beacon identifier; never an account API token |
 
-All enabled destinations must be complete HTTPS URLs without credentials. Preserve the URL's path, query, and fragment. `url` remains the direct destination and required fallback. Disabled links still need structurally valid feature options; do not let disabling a link hide malformed strategy settings.
+Enabled destinations must be complete HTTPS URLs without credentials, except for the exact built-in `/example/more-soon/` route in placeholder mode. Preserve HTTPS URL paths, queries, and fragments. `url` remains the direct destination and required fallback. Disabled links still need structurally valid feature options; do not let disabling a link hide malformed strategy settings.
 
 ### Optional fields and defaults
 
@@ -320,7 +344,7 @@ Dedicated Bouncy support is deferred. Do not add a `bouncy` mode, alternate prov
 
 ## 6. Landing-page experience and optional acknowledgment
 
-Preserve the existing centered profile, portrait/initials, short biography, prominent primary CTA, secondary links, and footer. Extend it with unobtrusive browser assistance and optional acknowledgment. Public samples use generic branding and `example.com` destinations.
+Preserve the existing centered profile, portrait/initials, short biography, prominent primary CTA, secondary links, and footer. Extend it with unobtrusive browser assistance and optional acknowledgment. Public samples use generic branding and the local “More soon” destination; synthetic external-link tests use `example.com`.
 
 Accessibility targets: semantic headings/navigation, visible keyboard focus, usable 200% zoom, no horizontal overflow at 320 CSS pixels, minimum 44-by-44 CSS-pixel controls, WCAG AA text contrast in defaults, reduced motion, descriptive image alternatives, and status announcements that do not unexpectedly move focus. Test the chosen custom theme as well as defaults.
 
@@ -377,7 +401,7 @@ Cap any queue and isolate adapter exceptions. GA4, blockers, offline networks, a
 
 Use one public repository by default. A second private repository may be considered only for a concrete technical or security need that cannot be met by isolated deployment settings and the existing build/upload workflow; record that justification before changing the architecture. Private production configuration alone is not such a justification.
 
-Each Worker has its own branding, link set/order, theme, enabled features, domain, analytics settings, build variables, and release/rollback history. Changing these settings requires configuration and a rebuild, never edits to application source or a per-site code branch. Build only the selected site's assets and public options; no generated site may contain another site's configuration. Multiple domains on one Worker are aliases for that output, not independently configured websites. A staging branch can set `SITE_PRODUCTION_BRANCH` explicitly for that project. Never make sensitive build variables available to untrusted pull-request code.
+Each Worker has its own branding, link set/order, theme, enabled features, domain, analytics settings, build variables, and release/rollback history. Changing these settings requires configuration and a rebuild, never edits to application source or a per-site code branch. Build only the selected site's assets and public options, alongside the public demo and platform landing where applicable; no generated site may contain another deployment's configuration. Multiple domains on one Worker are aliases for that output, not independently configured websites. A profile path on one Worker needs no additional domain or DNS record. A staging branch can set `SITE_PRODUCTION_BRANCH` explicitly for that project. Never make sensitive build variables available to untrusted pull-request code.
 
 The existing environment/local/sample selection is sufficient for independent builds. Local operators can supply a different `SITE_CONFIG_JSON` for each invocation; ensure each generated output is deployed to its intended project before reusing the output directory. Named local profiles, a tenant database, a hostname-driven runtime config registry, and separate application packages are not required. Shared code updates may build several connected projects, but one site's config change or rollback must not change another site's settings.
 
@@ -428,7 +452,7 @@ Keep Cloudflare WAF, Managed Challenges, Browser Integrity Check, and bot settin
 
 - Retain CSP, MIME-sniffing prevention, framing restrictions, referrer policy, and unused-browser-feature restrictions.
 - Keep executable first-party code external. Add only integration-specific CSP sources; do not solve module or analytics errors with `unsafe-inline`, `unsafe-eval`, or unrestricted origins. Validate against [Google's CSP guidance](https://developers.google.com/tag-platform/security/guides/csp) for an enabled GA4 adapter.
-- Preserve escaped text, HTTPS-only configured destinations, safe JSON serialization, CSS injection checks, restricted image paths, and symlink containment.
+- Preserve escaped text, HTTPS-only external destinations and the narrowly allowlisted internal placeholder, safe JSON serialization, CSS injection checks, restricted image paths, and symlink containment.
 - Allow custom launch schemes only inside the trusted strategy builder after validating the original HTTPS target. Do not allow raw scheme strings in configuration.
 - Reject arbitrary automatic redirect targets from the address bar. The marker for loop suppression has no security authority.
 - Never log private JSON, parser excerpts, complete analytics payload URLs, or environment contents.

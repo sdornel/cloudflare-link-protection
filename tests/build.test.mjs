@@ -28,11 +28,14 @@ test('standalone example has embedded styling and stays unchanged by configured 
   assert.doesNotMatch(before, /<script\b|<link\b[^>]*rel=["']stylesheet|<img\b|<iframe\b|@import\b|url\s*\(|\{\{[A-Z_]+\}\}/i);
   const links = [...before.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*data-link-id=/g)].map((match) => match[1]);
   assert.ok(links.length >= 3);
-  assert.ok(links.every((url) => new URL(url).hostname === 'example.com'));
+  assert.ok(links.every((url) => url === './more-soon.html'));
   const allLinks = [...before.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((match) => match[1]);
-  assert.ok(allLinks.every((url) => url.startsWith('#') || ['example.com', 'dash.cloudflare.com', 'developers.cloudflare.com'].includes(new URL(url).hostname)));
-  assert.match(before, /<details id="publish-guide" class="setup-guide">/);
-  assert.match(before, /<code>npm run build<\/code>/);
+  assert.ok(allLinks.every((url) => url.startsWith('#') || url === './more-soon.html'));
+  const moreSoon = await readFile(path.join(root, 'more-soon.html'), 'utf8');
+  assert.match(moreSoon, /<h1>More soon<\/h1>/);
+  assert.match(moreSoon, /href="\.\/example.html"/);
+  assert.doesNotMatch(moreSoon, /<script\b|<link\b[^>]*rel=["']stylesheet/i);
+  assert.doesNotMatch(before, /id="publish-guide"|Publish with Cloudflare|Software engineer|Demo ·|class="preview-note"/);
   const config = { ...fresh(), name: 'PRIVATE_EXAMPLE_ISOLATION_MARKER', styles: { variables: { accent: '#234567' } } };
   const { html } = await built(t, { privateBuild: true, env: { SITE_CONFIG_JSON: JSON.stringify(config) } });
   assert.match(html, /PRIVATE_EXAMPLE_ISOLATION_MARKER/);
@@ -42,19 +45,21 @@ test('standalone example has embedded styling and stays unchanged by configured 
 });
 
 test('explicit example build ignores private inputs and emits direct functional links', async (t) => {
-  const { html, outDir } = await built(t, { exampleBuild: true, env: { SITE_CONFIG_JSON: 'INVALID_PRIVATE_MARKER' } });
+  const { html: home, outDir } = await built(t, { exampleBuild: true, env: { SITE_CONFIG_JSON: 'INVALID_PRIVATE_MARKER' } });
+  assert.match(home, /href="\/example\/"/);
+  assert.doesNotMatch(home, /PRIVATE_MARKER|publish-guide/);
+  const html = await readFile(path.join(outDir, 'example/index.html'), 'utf8');
   for (const link of [original.primaryLink, ...original.secondaryLinks]) assert.ok(html.includes(`href="${link.url}"`));
   assert.match(html, /noindex, follow/);
-  assert.match(html, /id="publish-guide"/);
-  assert.match(html, /npx wrangler deploy/);
+  assert.doesNotMatch(html, /id="publish-guide"|Publish with Cloudflare|Software engineer|Demo ·|class="preview-note"/);
   assert.doesNotMatch(html, /PRIVATE_MARKER|http-equiv=["']refresh|target=["']_blank|onclick=/i);
   assert.match(await readFile(path.join(outDir, 'robots.txt'), 'utf8'), /User-agent: \*\nAllow: \//);
-  assert.deepEqual((await readdir(outDir)).sort(), ['404.html', '_headers', 'assets', 'favicon.svg', 'index.html', 'robots.txt', 'styles.css']);
+  assert.deepEqual((await readdir(outDir)).sort(), ['404.html', '_headers', 'example', 'favicon.svg', 'index.html', 'robots.txt', 'styles.css']);
 });
 
 test('default build uses local config, styles and private images, then falls back when the file is absent', async (t) => {
   const projectRoot = await temp(t);
-  for (const file of ['config/site.example.json', 'config/theme.json', 'src/index.html', 'public/_headers']) {
+  for (const file of ['config/site.example.json', 'config/theme.json', 'config/landing.example.json', 'config/landing.theme.json', 'src/landing.html', 'src/index.html', 'src/more-soon.html', 'public/_headers']) {
     await mkdir(path.dirname(path.join(projectRoot, file)), { recursive: true });
     await copyFile(path.join(root, file), path.join(projectRoot, file));
   }
@@ -80,8 +85,10 @@ test('default build uses local config, styles and private images, then falls bac
 
   await build({ projectRoot, exampleBuild: true, env: { SITE_CONFIG_JSON: 'INVALID_PRIVATE_MARKER' } });
   const exampleHTML = await readFile(index, 'utf8');
-  assert.ok(exampleHTML.includes(original.name));
-  assert.match(exampleHTML, /id="publish-guide"/);
+  assert.match(exampleHTML, /href="\/example\/"/);
+  const demoHTML = await readFile(path.join(result.outDir, 'example/index.html'), 'utf8');
+  assert.ok(demoHTML.includes(original.name));
+  assert.doesNotMatch(demoHTML, /id="publish-guide"|class="preview-note"/);
   assert.doesNotMatch(exampleHTML, /LOCAL_CUSTOM_MARKER|custom\.example/);
   assert.ok(!(await readdir(result.outDir)).includes('images'));
 
@@ -150,7 +157,9 @@ test('private build renders only selected display fields without publishing its 
   const config = { ...fresh(), name: 'PRIVATE_DISPLAY_NAME', internalNote: 'DO_NOT_PUBLISH_MARKER' };
   const { html, outDir } = await built(t, { privateBuild: true, env: { SITE_CONFIG_JSON: JSON.stringify(config) } });
   assert.match(html, /PRIVATE_DISPLAY_NAME/);
-  for (const file of await readdir(outDir)) assert.doesNotMatch(await readFile(path.join(outDir, file), 'utf8'), /DO_NOT_PUBLISH_MARKER/);
+  for (const file of await readdir(outDir, { recursive: true, withFileTypes: true })) {
+    if (file.isFile()) assert.doesNotMatch(await readFile(path.join(file.parentPath, file.name), 'utf8'), /DO_NOT_PUBLISH_MARKER/);
+  }
   assert.ok(!(await readdir(outDir)).some((file) => file.endsWith('.json')));
 });
 
@@ -158,6 +167,7 @@ test('production rejects unfinished config and generates canonical metadata for 
   assert.throws(() => validateConfig(fresh(), { production: true }), /Before production/);
   const config = fresh();
   config.siteUrl = 'https://profile.example';
+  for (const link of [config.primaryLink, ...config.secondaryLinks]) link.url = `https://example.com/${link.id}`;
   config.placeholderLinks = false;
   const { html, outDir } = await built(t, { config, production: true });
   assert.match(html, /rel="canonical" href="https:\/\/profile.example\/"/);
@@ -173,17 +183,19 @@ test('text is escaped, disabled links are omitted, and analytics is opt-in', asy
   config.analytics.cloudflareToken = 'a'.repeat(32);
   const { html } = await built(t, { config });
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt; &amp; &quot;Name&quot;/);
-  assert.ok(!html.includes(`href="${config.secondaryLinks[0].url}"`));
+  assert.ok(!html.includes(`data-link-id="${config.secondaryLinks[0].id}"`));
   assert.equal((html.match(/<script /g) || []).length, 1);
 });
 
 test('invalid config reports field names without exposing private input', () => {
-  for (const url of ['javascript:PRIVATE_MARKER', 'http://example.com/PRIVATE_MARKER', 'https://user:PRIVATE_MARKER@example.com/']) {
+  for (const url of ['javascript:PRIVATE_MARKER', 'http://example.com/PRIVATE_MARKER', 'https://user:PRIVATE_MARKER@example.com/', '/PRIVATE_MARKER', '//PRIVATE_MARKER', '/example/more-soon/?to=PRIVATE_MARKER', './more-soon.html']) {
     const config = fresh(); config.primaryLink.url = url;
     assert.throws(() => validateConfig(config), (error) => !error.message.includes('PRIVATE_MARKER'));
   }
   const config = fresh(); config.analytics.cloudflareToken = 'PRIVATE_MARKER';
   assert.throws(() => validateConfig(config), /Web Analytics token/);
+  const finished = fresh(); finished.placeholderLinks = false;
+  assert.throws(() => validateConfig(finished), /primaryLink.url/);
 });
 
 test('theme config controls layout, fonts, responsive rules, shadows, and animations', () => {

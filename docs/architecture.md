@@ -4,7 +4,7 @@
 
 A dependency-free Node build validates configuration, compiles JSON styling, renders HTML, and copies only referenced images. The static output works on Workers Static Assets, Pages, or an ordinary static host. There is no database, application server, or framework hydration. Generation needs no installed packages; Workers deployment uses the pinned Wrangler development dependency.
 
-The client never fetches `site.json`. The renderer emits an explicit allowlist of public feature settings in escaped inert JSON. Arbitrary operator metadata stays out of the output. Real anchor hrefs exist before JavaScript executes; an optional module can enhance a click but cannot become the only route to its destination.
+The client never fetches `site.json`. The renderer emits an explicit allowlist of public feature settings in escaped inert JSON. Arbitrary operator metadata stays out of the output. Real anchor hrefs exist before JavaScript executes; an optional module can enhance a click but cannot become the only route to its destination. The example's buttons use the exact built-in `/example/more-soon/` route; this sole local destination exception requires placeholder mode and always navigates directly. The placeholder page shares the neutral example stylesheet and has no client scripts.
 
 ## Strategy decisions versus browser effects
 
@@ -19,6 +19,8 @@ Normal/strict builds and the served neutral demo share `renderPage`. `example:re
 Client modules are emitted under a content-hashed directory. Changing any module changes the entry path and all relative imports together, avoiding mixed-version caches. All configurable styling, including assistance controls, remains in the JSON theme.
 
 ## Source separation
+
+Every build generates the neutral profile demo at `/example/`. Sample and non-root profile builds generate a distinct platform landing at `/`; `scripts/landing.mjs` renders its template using independent content/theme defaults and optional private `landing` overrides. Legacy root-profile configs retain their behavior. The build compiles and validates all pages before replacing output. Each page has its own asset directory; root robots, sitemap, 404, and security headers are generated once. The CSP combines the image/analytics origins needed by generated pages without loading one page's integrations on another. The homepage has no client scripts or creator directory. The preview server resolves directory indexes; Workers uses its default HTML routing. This adds no runtime config lookup, SPA fallback, or tenant database.
 
 A public sample supports a fresh clone. Ignored local config or a production-only environment variable supplies a deployed identity. An explicit example build ignores both private inputs. Separate Workers consume the same application source with separate settings. This separates source data; it does not make rendered information secret.
 

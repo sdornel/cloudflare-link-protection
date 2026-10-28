@@ -9,9 +9,10 @@ const destination = 'https://example.com/projects?a=1&a=2&encoded=%20#latest';
 
 // Serve a real synthetic build, including its CSP. Only the OS launch boundary
 // is replaced: the production app initializes and handles every click itself.
-async function fixture(page, { platform = 'ios', failLaunch = false, blockedStorage = false, autoOpen = false, age = false, analytics = false, mode = 'native' } = {}) {
+async function fixture(page, { platform = 'ios', failLaunch = false, blockedStorage = false, autoOpen = false, age = false, analytics = false, mode = 'native', profilePath = '/' } = {}) {
   const config = JSON.parse(await readFile(new URL('../../config/site.example.json', import.meta.url), 'utf8'));
   config.siteUrl = origin;
+  config.profilePath = profilePath;
   config.primaryLink.url = destination;
   config.browserOpening = { ...config.browserOpening, mode, autoOpen, fallbackDelayMs: 800 };
   config.ageAcknowledgment.enabled = age;
@@ -25,7 +26,7 @@ async function fixture(page, { platform = 'ios', failLaunch = false, blockedStor
     }));
     await page.route(`${origin}/**`, async route => {
       const pathname = new URL(route.request().url()).pathname;
-      const file = pathname === '/' ? 'index.html' : pathname.slice(1);
+      const file = pathname.endsWith('/') ? `${pathname.slice(1)}index.html` : pathname.slice(1);
       let body = await readFile(path.join(directory, file));
       if (file.endsWith('/handoff-controller.js')) {
         const source = body.toString();
@@ -47,7 +48,7 @@ async function fixture(page, { platform = 'ios', failLaunch = false, blockedStor
       window.addEventListener('profile:analytics', event => window.__events.push(event.detail));
       if (blockedStorage) Object.defineProperty(window, 'sessionStorage', { get() { throw new Error('Storage blocked'); } });
     }, { platform, failLaunch, blockedStorage });
-    await page.goto(`${origin}/?source=test#links`);
+    await page.goto(`${origin}${profilePath === '/' ? '/' : `${profilePath}/`}?source=test#links`);
     await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
     return async () => { await page.unrouteAll({ behavior: 'wait' }); await rm(directory, { recursive: true, force: true }); };
   } catch (error) {
@@ -102,6 +103,22 @@ test('automatic iOS opening writes a URL guard and cannot repeat after reload', 
     expect(await page.evaluate(() => window.__launches.length)).toBe(0);
     await page.locator('#browser-open').click();
     await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(1);
+  } finally { await cleanup(); }
+});
+
+test('nested profile loads its own assets and preserves the page path through automatic handoff and reload', async ({ page }) => {
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  const cleanup = await fixture(page, { profilePath: '/sample-creator', autoOpen: true, blockedStorage: true });
+  try {
+    await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(1);
+    await expect(page).toHaveURL(`${origin}/sample-creator/?source=test&_lp_handoff=1#links`);
+    expect(await page.evaluate(() => window.__launches[0].target)).toBe(page.url());
+    expect(await page.evaluate(() => [...document.styleSheets].some(sheet => sheet.href?.includes('/sample-creator/styles.css')))).toBe(true);
+    await expect(page.getByRole('link', { name: 'Explore my work' })).toHaveAttribute('href', destination);
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+    expect(await page.evaluate(() => window.__launches.length)).toBe(0);
+    expect(errors).toEqual([]);
   } finally { await cleanup(); }
 });
 

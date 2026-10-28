@@ -1,8 +1,9 @@
 {
   "name": "Your name",
-  "bio": "Software engineer. Building useful things.",
-  "description": "A simple home for projects, writing, and ways to get in touch.",
+  "bio": "A few of my favorite things, all in one place.",
+  "description": "A simple place for my favorite links and ways to connect.",
   "siteUrl": "",
+  "profilePath": "/",
   "placeholderLinks": true,
   "profile": {
     "initials": "YN",
@@ -11,29 +12,29 @@
   },
   "primaryLink": {
     "label": "Explore my work",
-    "url": "https://example.com/projects",
+    "url": "/example/more-soon/",
     "icon": "arrow",
     "id": "projects"
   },
   "secondaryLinks": [
     {
       "label": "Read my notes",
-      "url": "https://example.com/notes",
+      "url": "/example/more-soon/",
       "icon": "none",
       "enabled": true,
       "id": "notes"
     },
     {
       "label": "Get in touch",
-      "url": "https://example.com/contact",
+      "url": "/example/more-soon/",
       "icon": "none",
       "enabled": true,
       "id": "contact"
     }
   ],
-  "previewNote": "Demo \u00b7 replace these example links with your own.",
+  "previewNote": "",
   "seo": {
-    "title": "Your name | Projects & links",
+    "title": "Your name | Links",
     "image": "",
     "imageAlt": ""
   },

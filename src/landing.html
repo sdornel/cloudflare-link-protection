@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{{NAME}}</title>
+    <meta name="description" content="{{DESCRIPTION}}">
+    <meta name="theme-color" content="{{BACKGROUND}}">
+    <meta name="color-scheme" content="{{COLOR_SCHEME}}">
+    <meta name="robots" content="noindex, follow">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{NAME}}">
+    <meta property="og:description" content="{{DESCRIPTION}}">
+    {{SEO}}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css?v={{ASSET_VERSION}}">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="{{NAME}} home"><span class="brand-mark" aria-hidden="true">{{INITIALS}}</span><span>{{NAME}}</span></a>
+    </header>
+    <main id="main" class="landing" tabindex="-1">
+      <p class="eyebrow">{{EYEBROW}}</p>
+      <h1>{{HEADLINE}}</h1>
+      <p class="intro">{{DESCRIPTION}}</p>
+      <a class="landing-cta" href="/example/"><span>{{CTA_LABEL}}</span><span aria-hidden="true">↗</span></a>
+    </main>
+    <footer class="site-footer"><p>{{FOOTER}}</p></footer>
+  </body>
+</html>

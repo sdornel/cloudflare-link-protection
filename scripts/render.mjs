@@ -1,4 +1,4 @@
-import { escapeHTML } from './config.mjs';
+import { escapeHTML, PLACEHOLDER_URL } from './config.mjs';
 import { publicOptions } from './features.mjs';
 import { setupGuide } from './setup-guide.mjs';
 
@@ -9,14 +9,18 @@ const icons = {
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
 };
 
-function renderLink(link, primary = false) {
+function renderLink(link, primary = false, placeholderHref = PLACEHOLDER_URL) {
   const icon = icons[link.icon] ? `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${icons[link.icon]}</svg>` : '';
-  return `<a class="link${primary ? ' link-primary' : ''}" href="${escapeHTML(link.url)}" data-link-id="${escapeHTML(link.id)}" data-opening-mode="${escapeHTML(link.openingMode)}" title="${escapeHTML(new URL(link.url).hostname)}"><span>${escapeHTML(link.label)}</span>${icon}</a>`;
+  const placeholder = link.url === PLACEHOLDER_URL;
+  const href = placeholder ? placeholderHref : link.url;
+  return `<a class="link${primary ? ' link-primary' : ''}" href="${escapeHTML(href)}" data-link-id="${escapeHTML(link.id)}" data-opening-mode="${placeholder ? 'direct' : escapeHTML(link.openingMode)}" title="${placeholder ? 'More soon' : escapeHTML(new URL(link.url).hostname)}"><span>${escapeHTML(link.label)}</span>${icon}</a>`;
 }
 
-export function renderPage({ config, template, profile, share, assetVersion, clientVersion, enhanced = false, showSetupGuide = false }) {
+export function renderPage({ config, template, profile, share, assetVersion, clientVersion, enhanced = false, showSetupGuide = false, placeholderHref = PLACEHOLDER_URL }) {
   const indexable = Boolean(config.siteUrl && !config.placeholderLinks);
-  const siteURL = config.siteUrl ? new URL('/', config.siteUrl).href : '';
+  const pagePath = config.profilePath && config.profilePath !== '/' ? `${config.profilePath}/` : '/';
+  const assetBase = pagePath === '/' ? './' : pagePath;
+  const siteURL = config.siteUrl ? new URL(pagePath, config.siteUrl).href : '';
   const seo = [];
   if (siteURL) {
     seo.push(`<link rel="canonical" href="${escapeHTML(siteURL)}">`, `<meta property="og:url" content="${escapeHTML(siteURL)}">`);
@@ -26,15 +30,15 @@ export function renderPage({ config, template, profile, share, assetVersion, cli
     TITLE: escapeHTML(config.seo.title), DESCRIPTION: escapeHTML(config.description),
     NAME: escapeHTML(config.name), BIO: escapeHTML(config.bio), BACKGROUND: config.appearance.browserThemeColor,
     COLOR_SCHEME: config.appearance.colorScheme, ROBOTS: indexable ? 'index, follow' : 'noindex, follow', SEO: seo.join('\n    '),
-    TWITTER_CARD: siteURL && share ? 'summary_large_image' : 'summary', ASSET_VERSION: assetVersion,
+    TWITTER_CARD: siteURL && share ? 'summary_large_image' : 'summary', ASSET_VERSION: assetVersion, ASSET_BASE: assetBase,
     AVATAR: profile ? `<img src="${escapeHTML(profile.src)}" alt="${escapeHTML(config.profile.alt)}" width="124" height="124" fetchpriority="high" decoding="async">` : `<span aria-hidden="true">${escapeHTML(config.profile.initials)}</span>`,
-    PRIMARY_LINK: renderLink(config.primaryLink, true),
-    SECONDARY_LINKS: config.secondaryLinks.filter((link) => link.enabled).map((link) => renderLink(link)).join('\n          '),
+    PRIMARY_LINK: renderLink(config.primaryLink, true, placeholderHref),
+    SECONDARY_LINKS: config.secondaryLinks.filter((link) => link.enabled).map((link) => renderLink(link, false, placeholderHref)).join('\n          '),
     PREVIEW_NOTE: config.placeholderLinks && config.previewNote ? `<p class="preview-note">${escapeHTML(config.previewNote)}</p>` : '',
     SETUP_GUIDE: showSetupGuide ? setupGuide() : '',
     ENHANCEMENTS: enhanced ? enhancements(config) : '',
     AGE_NOTICE: config.ageAcknowledgment.enabled ? ageNotice(config) : '',
-    CLIENT: enhanced ? `<script id="profile-options" type="application/json">${safeJSON(publicOptions(config))}</script><script type="module" src="./assets/${clientVersion}/app.js"></script>` : '',
+    CLIENT: enhanced ? `<script id="profile-options" type="application/json">${safeJSON(publicOptions(config))}</script><script type="module" src="${assetBase}assets/${clientVersion}/app.js"></script>` : '',
     ANALYTICS: config.analytics.cloudflareToken ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${config.analytics.cloudflareToken}"}'></script>` : '',
   };
   const html = template.replace(/\{\{([A-Z_]+)\}\}/g, (_, key) => {
@@ -42,6 +46,17 @@ export function renderPage({ config, template, profile, share, assetVersion, cli
     return tokens[key];
   });
   return { html, indexable, siteURL };
+}
+
+export function renderMoreSoon({ template, css, assetVersion, standalone = false }) {
+  const tokens = {
+    STYLES: standalone ? `<style>\n${css}</style>` : `<link rel="stylesheet" href="/example/styles.css?v=${assetVersion}">`,
+    BACK_URL: standalone ? './example.html' : '/example/',
+  };
+  return template.replace(/\{\{([A-Z_]+)\}\}/g, (_, key) => {
+    if (!(key in tokens)) throw new Error('Unknown placeholder template token.');
+    return tokens[key];
+  });
 }
 
 function ageNotice(config) {

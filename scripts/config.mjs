@@ -5,6 +5,7 @@ import { normalizeFeatures } from './features.mjs';
 import { isHTTPS } from '../src/client/browser-opening.js';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
+export const PLACEHOLDER_URL = '/example/more-soon/';
 export const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[char]));
@@ -69,6 +70,29 @@ export function httpsURL(value, field) {
   return url;
 }
 
+export function validateLanding(config, { partial = false } = {}) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('landing must be an object.');
+  const fields = ['name', 'initials', 'eyebrow', 'headline', 'description', 'ctaLabel', 'footer'];
+  for (const field of fields) {
+    if (partial && config[field] === undefined) continue;
+    requireText(config[field], `landing.${field}`);
+    if (config[field].length > 500) throw new Error(`landing.${field} must be at most 500 characters.`);
+  }
+  if (Object.keys(config).some(key => ![...fields, 'appearance', 'styles'].includes(key))) throw new Error('landing contains an unsupported field.');
+  if (!partial || config.appearance !== undefined) {
+    const appearance = config.appearance;
+    if (!appearance || typeof appearance !== 'object' || Array.isArray(appearance)) throw new Error('landing.appearance must be an object.');
+    for (const field of ['browserThemeColor', 'faviconBackground', 'faviconText']) {
+      if (partial && appearance[field] === undefined) continue;
+      if (typeof appearance[field] !== 'string' || appearance[field].length !== 7 || !/^#[a-f0-9]{6}$/i.test(appearance[field])) throw new Error(`landing.appearance.${field} must be a six-digit hex color.`);
+    }
+    if ((!partial || appearance.colorScheme !== undefined) && !['light', 'dark', 'light dark', 'dark light'].includes(appearance.colorScheme)) throw new Error('landing.appearance.colorScheme is unsupported.');
+    if (Object.keys(appearance).some(key => !['browserThemeColor', 'faviconBackground', 'faviconText', 'colorScheme'].includes(key))) throw new Error('landing.appearance contains an unsupported field.');
+  }
+  if (config.styles !== undefined && (!config.styles || typeof config.styles !== 'object' || Array.isArray(config.styles))) throw new Error('landing.styles must be an object.');
+  return config;
+}
+
 export function validateConfig(config, { production = false } = {}) {
   if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Configuration must be an object.');
   for (const field of ['name', 'bio', 'description']) requireText(config[field], field);
@@ -83,10 +107,15 @@ export function validateConfig(config, { production = false } = {}) {
   for (const [index, link] of [config.primaryLink, ...config.secondaryLinks.filter((link) => link.enabled)].entries()) {
     const field = index === 0 ? 'primaryLink' : `secondaryLinks[${index - 1}]`;
     requireText(link?.label, `${field}.label`);
-    httpsURL(link.url, `${field}.url`);
+    if (link.url !== PLACEHOLDER_URL || !config.placeholderLinks) httpsURL(link.url, `${field}.url`);
     if (!['none', 'arrow', 'heart'].includes(link.icon ?? 'none')) throw new Error(`${field}.icon must be none, arrow, or heart.`);
   }
   if (typeof config.siteUrl !== 'string') throw new Error('siteUrl must be text.');
+  if (config.profilePath !== undefined && (typeof config.profilePath !== 'string' ||
+    (config.profilePath !== '/' && (!/^\/[a-z0-9][a-z0-9-]{0,63}(?![\s\S])/.test(config.profilePath) || ['/example', '/assets', '/images'].includes(config.profilePath))))) {
+    throw new Error('profilePath must be / or one lowercase slug (1–64 letters, digits, or hyphens); example, assets and images are reserved.');
+  }
+  if (config.landing !== undefined) validateLanding(config.landing, { partial: true });
   if (config.siteUrl) {
     const url = httpsURL(config.siteUrl, 'siteUrl');
     if (url.pathname !== '/' || url.search || url.hash) throw new Error('siteUrl must be an HTTPS origin without a path, query, or fragment.');

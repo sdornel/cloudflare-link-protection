@@ -1,0 +1,16 @@
+{
+  "name": "Your Space",
+  "initials": "S",
+  "eyebrow": "A little space to connect",
+  "headline": "Your world,\none tap away.",
+  "description": "A simple home for the things you create and the places people can find you.",
+  "ctaLabel": "View an example",
+  "footer": "Make room for what matters.",
+  "appearance": {
+    "browserThemeColor": "#f8fafc",
+    "colorScheme": "light",
+    "faviconBackground": "#e1e9f8",
+    "faviconText": "#314d7b"
+  },
+  "styles": {}
+}

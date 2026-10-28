@@ -1,22 +1,23 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { root } from './build.mjs';
 
 const types = { '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.avif': 'image/avif', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml' };
 
-export function createPreviewServer(directory) {
+export function createPreviewHandler(directory) {
   const dir = path.resolve(directory);
-  return http.createServer(async (req, res) => {
+  return async (req, res) => {
     try {
       if (!['GET', 'HEAD'].includes(req.method)) {
         res.writeHead(405, { Allow: 'GET, HEAD' }).end();
         return;
       }
-      const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+      const url = new URL(req.url, 'http://localhost');
+      const pathname = decodeURIComponent(url.pathname);
       const relative = pathname === '/' ? 'index.html' : pathname.slice(1);
-      const file = path.resolve(dir, relative);
+      let file = path.resolve(dir, relative);
       if (!file.startsWith(`${dir}${path.sep}`) || relative.split(/[\\/]/).some((part) => part.startsWith('.') || part.startsWith('_'))) {
         res.writeHead(404).end();
         return;
@@ -24,7 +25,17 @@ export function createPreviewServer(directory) {
       const headers = { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
       let body;
       try {
-        body = await readFile(file);
+        if ((await stat(file)).isDirectory()) {
+          file = path.join(file, 'index.html');
+          // Only a real directory index is a page; asset directories stay 404.
+          body = await readFile(file);
+          if (!pathname.endsWith('/')) {
+            res.writeHead(307, { Location: `${url.pathname}/${url.search}`, 'Cache-Control': 'no-store' }).end();
+            return;
+          }
+          headers['Content-Type'] = types['.html'];
+        }
+        body ??= await readFile(file);
       } catch {
         res.statusCode = 404;
         headers['Content-Type'] = types['.html'];
@@ -35,7 +46,11 @@ export function createPreviewServer(directory) {
     } catch {
       res.writeHead(400).end('Invalid request, or missing build. Build the selected profile first.');
     }
-  });
+  };
+}
+
+export function createPreviewServer(directory) {
+  return http.createServer(createPreviewHandler(directory));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

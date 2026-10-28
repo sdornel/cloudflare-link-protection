@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex, follow">
+    <title>More soon</title>
+    <style>
+:root {
+  --background: #f8fafc;
+  --text: #172033;
+  --muted: #536176;
+  --accent: #315dc4;
+  --accent-hover: #2548a1;
+  --on-accent: #ffffff;
+  --border: #d7dfeb;
+  --avatar-background: #e1e9f8;
+  --avatar-text: #314d7b;
+  --link-background: #ffffff;
+  --link-hover-background: #ffffff;
+  --page-background: radial-gradient(ellipse at 8% 6%, #e1e9f880, transparent 48%), radial-gradient(ellipse at 94% 83%, #e1e9f860, transparent 45%), var(--background);
+  --avatar-shadow: 0 0 0 1px var(--border), 0 8px 28px #17203309;
+  --primary-shadow: 0 6px 20px #315dc41a;
+  --link-hover-shadow: 0 7px 20px #17203310;
+  --primary-hover-shadow: 0 8px 24px #315dc426;
+  --tap-highlight: #315dc41a;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --avatar-size: 114px;
+  --icon-size: 21px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 280px;
+  background: var(--background);
+  color: var(--text);
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  background: var(--page-background);
+}
+
+.page {
+  width: min(100%, 488px);
+  margin-inline: auto;
+  padding: 40px 22px 24px;
+  padding-top: max(40px, env(safe-area-inset-top));
+  padding-right: max(22px, env(safe-area-inset-right));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  padding-left: max(22px, env(safe-area-inset-left));
+  text-align: center;
+}
+
+.profile {
+  margin-bottom: 28px;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  margin: 0 auto 25px;
+  overflow: hidden;
+  border: 5px solid var(--background);
+  border-radius: 50%;
+  background: var(--avatar-background);
+  box-shadow: var(--avatar-shadow);
+  color: var(--avatar-text);
+  font-size: 35px;
+  font-weight: 500;
+  letter-spacing: -1px;
+}
+
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(28px, 7vw, 32px);
+  font-weight: 600;
+  letter-spacing: -0.9px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.bio {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.links {
+  scroll-margin-top: 20px;
+}
+
+.secondary-links {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 68px;
+  width: 100%;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 21px;
+  background: var(--link-background);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: var(--tap-highlight);
+  touch-action: manipulation;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.link span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.link-primary {
+  min-height: 76px;
+  border-color: transparent;
+  background: var(--accent);
+  box-shadow: var(--primary-shadow);
+  color: var(--on-accent);
+  font-size: 20px;
+}
+
+.icon {
+  flex: 0 0 var(--icon-size);
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.link:active {
+  transform: translateY(1px);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 5px;
+}
+
+.footer {
+  margin-top: 29px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.footer p {
+  margin: 0;
+}
+
+.footer .preview-note {
+  max-width: 290px;
+  margin: 13px auto 0;
+  font-size: 11px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: var(--text);
+  color: var(--on-accent);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+button {
+  font-family: inherit;
+}
+
+.notice {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--link-background);
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.notice p {
+  margin: 0 0 10px;
+}
+
+.notice .status:empty {
+  display: none;
+}
+
+.hint {
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quiet-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--link-background);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.quiet-button:hover {
+  background: var(--avatar-background);
+}
+
+.browser-tools {
+  margin-top: 20px;
+}
+
+.browser-tools:has([hidden]) {
+  margin-top: 0;
+}
+
+.setup-guide {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--link-background);
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.setup-guide summary {
+  min-height: 48px;
+  padding: 14px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.setup-guide summary:hover {
+  color: var(--accent);
+}
+
+.setup-content {
+  padding: 0 18px 18px;
+}
+
+.setup-content h2 {
+  margin: 20px 0 8px;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.setup-content p {
+  margin: 10px 0;
+}
+
+.setup-content a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.setup-content code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.setup-steps, .setup-content ul {
+  padding-left: 20px;
+}
+
+.setup-content li {
+  margin-block: 8px;
+}
+
+.setup-settings {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--background);
+}
+
+.setup-settings dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.setup-settings dd {
+  margin: 0 0 12px;
+}
+
+.setup-settings dd:last-child {
+  margin-bottom: 0;
+}
+
+.setup-help {
+  margin-top: 20px;
+  border-block: 1px solid var(--border);
+}
+
+.setup-help summary {
+  padding-inline: 0;
+}
+
+@media (hover: hover) {
+.link:hover {
+  transform: translateY(-2px);
+  background: var(--link-hover-background);
+  box-shadow: var(--link-hover-shadow);
+}
+
+.link-primary:hover {
+  background: var(--accent-hover);
+  box-shadow: var(--primary-hover-shadow);
+}
+}
+
+@media (min-width: 600px) {
+.page {
+  padding-top: clamp(52px, 9vh, 100px);
+}
+
+.avatar {
+  width: 124px;
+  height: 124px;
+}
+
+.profile {
+  margin-bottom: 32px;
+}
+
+.bio {
+  font-size: 18px;
+}
+}
+
+@media (max-width: 350px) {
+.page {
+  padding-inline: 16px;
+  padding-top: 28px;
+}
+
+.link, .link-primary {
+  font-size: 18px;
+}
+
+.bio {
+  font-size: 16px;
+}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+.page {
+  animation: arrive 400ms ease-out both;
+}
+}
+
+@media (prefers-reduced-motion: reduce) {
+*, *::before, *::after {
+  animation: none !important;
+  transition: none !important;
+}
+}
+
+@media (forced-colors: active) {
+.link, .avatar {
+  border: 1px solid ButtonText;
+}
+}
+
+@keyframes arrive {
+from {
+  transform: translateY(6px);
+}
+
+to {
+  transform: translateY(0);
+}
+}
+</style>
+  </head>
+  <body>
+    <main class="page">
+      <h1>More soon</h1>
+      <p class="bio"><a class="quiet-button" href="./example.html">Back to example</a></p>
+    </main>
+  </body>
+</html>
