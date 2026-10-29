@@ -15,6 +15,17 @@ Updated 2026-10-28. The current release scope supports direct/native navigation.
 - The entry animation keeps content visible from its first frame. Its previous zero-opacity start prevented Chromium from reporting a contentful paint in the measured build; the small translation and reduced-motion behavior remain.
 - Workers Static Assets configuration, pinned Wrangler tooling, a deployment dry-run command, and current setup instructions. Private build branch checks support Workers and existing Pages deployments.
 - Optional `profilePath` generates a creator below the root alongside a separate platform landing at `/` and neutral demo at `/example/`. The provisional homepage has independent JSON content/styling, optional private `landing` overrides, and a working demo CTA. Legacy root-profile configs retain their behavior. Slugs and private landing branding are included in publication audits.
+- Optional branded Turnstile gate with configurable copy/theme, server-side verification, signed sessions, protected document aliases, explicit retry/error states, and no provider dependency on the ordinary links page. The Worker runs before assets; verification remains disabled until runtime credentials and the config toggle are set. Activation and rollback are documented in [verification](verification.md).
+
+## Branded verification checks — 2026-10-28
+
+This feature is implemented locally, not deployed or activated. Earlier hosted-demo/CI evidence below predates this change.
+
+- Dependency-free Worker/client tests: **22 passed**, covering config validation, protected routes and internal metadata, nonce/action/hostname checks, token replay, safe redirects, cookie signatures/expiry/rotation, provider failure, retry/address preservation, narrow widget sizing, and static-preview rejection. A separate publication-audit regression checks private verification text while allowing shared defaults.
+- Full Node suite: **76 discovered, 74 passed, one skipped, one failed**. Both unavailable checks involve Git subprocesses; the existing directory-alias test fails at `spawnSync git` with `EPERM`. Application tests pass, but the full suite is not green on this host.
+- Normal local-config build, explicit neutral build, and standalone example regeneration passed. The checked-in neutral HTML snapshots remain unchanged. Private inputs remain ignored. Public-source auditing passes; Node cannot inspect the Git index on this host, so separate shell Git checks confirm ignored paths.
+- Three new Playwright scenarios per Chromium/WebKit project cover real form/cookie flow, direct HTML protection, blocked provider scripts, disabled JavaScript, query/fragment preservation, and mobile layout with a synthetic provider. Syntax checks passed; browser execution and the Wrangler dry run remain pending because dependencies could not be installed (`EAI_AGAIN` reaching the npm registry). No new screenshots or performance results are claimed.
+- Real widget completion, custom-domain deployment, WAF interactions, and physical Instagram browser behavior still require the operator's runtime keys and device checks. The default deployment now invokes a Worker for every asset request and is subject to Workers Free request/CPU limits.
 
 ## Landing and profile path verification — 2026-10-28
 
@@ -25,7 +36,7 @@ The path change is locally implemented; no new Cloudflare deployment or live pat
 - Public-source audit passed against ignored local private fields and operator audit terms. Node could not inspect the Git index; separate shell Git checks confirmed the local config, private notes, and generated output are ignored and untracked.
 - Browser regression coverage includes nested assets, automatic-handoff reload guards, and the homepage-to-demo journey at 320px with JavaScript enabled and disabled. Syntax checks passed, but browser execution is unavailable because Playwright is not installed here. Screenshots/performance now target the hosted demo at `/example/`; new browser measurements, visual review of the landing, and Workers routing/deployment checks remain pending.
 
-## Recorded verification
+## Earlier release verification
 
 | Check | Result |
 | --- | --- |
@@ -41,7 +52,7 @@ The path change is locally implemented; no new Cloudflare deployment or live pat
 | Screenshots | Neutral 390×844 mobile and 1280×900 desktop Chromium captures generated and visually reviewed |
 | GitHub Actions | [Run 40564944633](https://github.com/sdornel/cloudflare-link-protection/actions/runs/40564944633) passed all five jobs: Node 22/24 on macOS and Ubuntu, plus Workers dry run, Chromium/WebKit, screenshots, and performance checks |
 
-Both local verification and the linked remote CI run passed. Linux coverage includes Docker and Ubuntu runners; WSL itself was not separately tested. The path fix uses filesystem canonicalization without OS-specific prefix substitutions.
+For that earlier release, both local verification and the linked remote CI run passed. These results do not cover the new verification Worker. Linux coverage includes Docker and Ubuntu runners; WSL itself was not separately tested. The path fix uses filesystem canonicalization without OS-specific prefix substitutions.
 
 ## Performance evidence
 

@@ -84,6 +84,32 @@
     "placeholderLinks": {
       "type": "boolean"
     },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional server-enforced Turnstile gate. Credentials belong in Worker runtime settings, never this file. Defaults are disabled, 60 minutes, and automatic widget theme.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "sessionMinutes": { "type": "integer", "minimum": 5, "maximum": 1440, "default": 60 },
+        "widgetTheme": { "enum": ["auto", "light", "dark"], "default": "auto" },
+        "styles": { "$ref": "#/properties/styles" },
+        "copy": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "heading": { "$ref": "#/$defs/verificationText" },
+            "description": { "$ref": "#/$defs/verificationText" },
+            "footer": { "$ref": "#/$defs/verificationText" },
+            "loading": { "$ref": "#/$defs/verificationText" },
+            "verifying": { "$ref": "#/$defs/verificationText" },
+            "error": { "$ref": "#/$defs/verificationText" },
+            "expired": { "$ref": "#/$defs/verificationText" },
+            "unavailable": { "$ref": "#/$defs/verificationText" },
+            "noScript": { "$ref": "#/$defs/verificationText" },
+            "retry": { "$ref": "#/$defs/verificationText" }
+          }
+        }
+      }
+    },
     "previewNote": {
       "type": "string"
     },
@@ -376,6 +402,7 @@
     }
   },
   "$defs": {
+    "verificationText": { "type": "string", "minLength": 1, "maxLength": 500, "pattern": "\\S" },
     "color": { "type": "string", "minLength": 7, "maxLength": 7, "pattern": "^#[a-fA-F0-9]{6}$" },
     "httpsURL": {
       "type": "string",

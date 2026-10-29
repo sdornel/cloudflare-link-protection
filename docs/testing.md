@@ -21,6 +21,12 @@ The Git fixture test may explicitly skip outside CI when Git cannot be spawned. 
 
 After `npm ci`, run `npm run check:workers` to build the neutral sample and validate its Wrangler deployment without publishing. Use `npx wrangler dev --local` to inspect Cloudflare static routing, security headers, and real 404 responses locally. Live HTTPS, DNS, and zone rules still need a deployed site.
 
+## Branded verification checks
+
+`tests/verification.test.mjs` builds synthetic profiles and exercises the real Worker with mocked assets/Siteverify. It checks protected document aliases, private metadata, safe return URLs, token replay and action/hostname/nonce binding, signed cookie tampering/expiry/rotation, origin checks, body limits, provider outages, headers, and disabled-feature compatibility. Gated Pages builds and the plain static preview must refuse unenforced output. `tests/verification-client.test.mjs` covers the widget's loading/error/expiry/retry states, one submission, exact address preservation, and compact sizing. These tests require no Cloudflare account or keys.
+
+The Chromium/WebKit verification fixture uses the real gate, client, and Worker with a synthetic widget/provider. It checks form navigation, secure session cookies, query/fragment preservation, direct HTML protection, narrow layout, blocked scripts, and disabled JavaScript. This does not prove live Turnstile or Instagram compatibility. The [activation and device checklist](verification.md#local-verification-and-live-checklist) covers staging and real-device evidence. The deployable Worker rejects official dummy credentials; there is no production verification bypass for tests.
+
 ## Browser integration
 
 ```sh

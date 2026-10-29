@@ -1,6 +1,6 @@
 # Static Profile Platform — authoritative specification
 
-**Status:** Implementation contract, updated 2026-10-27. Direct/native modes are in scope; Bouncy integration is deferred. See `docs/implementation-status.md` for measured verification and remaining release work.
+**Status:** Implementation contract, updated 2026-10-28. Direct/native modes are in scope; Bouncy integration is deferred. See `docs/implementation-status.md` for measured verification and remaining release work. The multi-profile workflow below is planned, not implemented.
 
 **Research and code inspection:** 2026-10-26.
 
@@ -27,7 +27,7 @@ Priority order:
 
 - Preserve native external-browser handoff in our own code. Dedicated provider integration is deferred; no third-party account, paid subscription, SDK, or backend is required.
 - Supported browser-opening modes are `direct` and `native`. Existing configurations retain their meaning. Ordinary third-party HTTPS destinations remain ordinary links.
-- Use static HTML/CSS and small JavaScript modules, with a dependency-free Node.js build. No required server, database, runtime framework, login, dashboard, or link-shortening service.
+- Use static HTML/CSS and small JavaScript modules, with a dependency-free Node.js build. Optional branded Turnstile verification adds a Cloudflare Worker; deployments without that feature remain usable as static output. No database, runtime framework, login, dashboard, or link-shortening service is required.
 - Use Cloudflare Workers Static Assets on Free as the documented hosting target, without making the generated output Cloudflare-dependent. Domain registration is a separate cost.
 - Keep the reusable application, configuration schema, neutral examples, documentation, and deployment tooling together in the public repository. A separate private repository needs a concrete, documented technical or security justification; none is currently required.
 - Keep deployment identity, real destinations, images, production configuration, and operating notes out of GitHub. The resulting public website necessarily exposes displayed content and destinations.
@@ -89,7 +89,7 @@ Allow the exact built-in placeholder URL `/example/more-soon/` only while `place
 
 Landing defaults come from committed neutral `config/landing.example.json`, styling from `config/landing.theme.json`, and semantic markup from `src/landing.html`. An optional `landing` object in the ignored site config/build secret overrides only landing content, appearance, and styling. No creator content, links, styling, analytics settings, or directory entry are inherited. The site's HTTPS origin may supply a root canonical URL; the provisional landing page remains noindex. The demo always uses public sample inputs and never private landing overrides. Keep real platform branding, creator identity, and paths in ignored configuration or the build secret, never public source. This version supports one configured creator alongside the landing and demo per deployment; a creator registry, login, and multiple configured profiles in one build are outside this change.
 
-Generate actual HTML files and path-specific assets; no client-side routing or runtime config fetch. Support both the clean path and its trailing-slash form. Workers uses its default HTML handling to normalize a directory index to the trailing-slash URL; canonical metadata uses that trailing slash. Use explicit path-prefixed asset URLs for nested pages so either entry form loads styling, images, and enhancements. Preserve queries through routing and native browser handoff. Unknown paths return the neutral 404 page, never an unrelated creator page. The preview server must exercise the same directory-index behavior.
+Generate actual HTML files and path-specific assets; no client-side routing or browser config fetch. The optional verification Worker reads generated deployment metadata internally. Support both the clean path and its trailing-slash form. Workers uses its default HTML handling to normalize a directory index to the trailing-slash URL; canonical metadata uses that trailing slash. Use explicit path-prefixed asset URLs for nested pages so either entry form loads styling, images, and enhancements. Preserve queries through routing and native browser handoff. Unknown paths return the neutral 404 page, never an unrelated creator page. The preview server must exercise the same directory-index behavior when verification is disabled; gated output requires Worker enforcement.
 
 Compile and validate all pages before replacing build output. Root-level security headers cover every page; the CSP permits only the configured image/analytics origins required by the generated pages. Keep robots and sitemap files at the origin root; list only indexable profile URLs, with noindex retained for placeholders, the provisional landing, and the neutral sample. The strict production check applies to the configured creator, not the intentional demo or landing. The standalone example and explicit example build remain neutral and independent of private input. Hosted demo screenshots and profile browser tests target `/example/`.
 
@@ -109,9 +109,14 @@ config/
   site.schema.json              editor schema for the documented config
   site.json                     ignored local deployment config
   theme.json                    committed shared styling
+  verification.theme.json       configurable verification layout
 src/
   index.html                    shared semantic template
   landing.html                  platform landing template
+  verification.html             branded gate template
+  verification/client.js        widget loading, submission, and retry UI
+  worker/index.js               routing and server-side Turnstile verification
+  worker/session.js             signed, expiring cookies
   client/
     app.js                      small initialization and event wiring layer
     browser-context.js          conservative environment detection
@@ -124,6 +129,8 @@ scripts/
   theme.mjs                     JSON-to-CSS compiler
   render.mjs                    reusable pure HTML renderer
   build.mjs                     output orchestration and asset copying
+  verification-config.mjs       gate defaults and validation
+  verification.mjs              gate rendering and deployment metadata
   example.mjs                   explicit neutral example regeneration
   serve.mjs                     local preview
   check-public.mjs              publication boundary audit
@@ -137,6 +144,7 @@ docs/
   analytics.md
   cloudflare.md
   security.md
+  verification.md               branded gate activation and rollback
   testing.md                    automated/manual verification guide
   images/                       neutral browser screenshots
 tests/                          unit and build integration tests
@@ -221,6 +229,10 @@ An omitted feature block preserves the previous direct-link behavior. New exampl
 | `analytics.ga4MeasurementId` | Empty by default; validated `G-…` identifier | Optional event reporting; public identifier, not a secret |
 | `analytics.ga4Consent` | `required` or `granted`; default `required` | Hold GA4 until consent, or use operator-selected deployment policy |
 | `analytics.debug` | Boolean, default `false` | Local developer event diagnostics without raw destinations |
+| `verification.enabled` | Boolean, default `false` | Require Worker-validated Turnstile before profile HTML; requires an HTTPS `siteUrl` |
+| `verification.sessionMinutes` | Integer 5–1440; default `60` | Signed application session lifetime |
+| `verification.widgetTheme` | `auto`, `light`, `dark`; default `auto` | Supported Turnstile appearance |
+| `verification.copy`, `verification.styles` | Empty overrides by default | Bounded gate text and shared-theme CSS overrides; never credentials |
 
 The schema and executable validator must agree. Reject wrong types, unknown enum values, invalid IDs, duplicate IDs, non-finite/range-invalid timeouts, and package/scheme injection. Extra legacy metadata may remain accepted for compatibility but must never be serialized through a spread of the source config.
 
@@ -419,10 +431,10 @@ A public GitHub deployment check may expose a production deployment URL. Config 
 
 ### Deployment contract
 
-- Workers Static Assets is the primary hosting target for new projects, following [Cloudflare's recommendation](https://developers.cloudflare.com/pages/). Existing Pages deployments remain compatible.
+- Workers Static Assets is the primary hosting target for new projects, following [Cloudflare's recommendation](https://developers.cloudflare.com/pages/). Existing Pages deployments remain compatible with verification disabled; enabled verification requires the Worker.
 - Node.js 22 or newer; build/output pairing from section 4. Pin Wrangler as a development dependency. Keep automatic package installation enabled for deployment.
 - Connect the same GitHub repository to separate demo and production Workers. The neutral Worker uses `npm run build` followed by `npx wrangler deploy`, with build variables and secrets empty; `wrangler.jsonc` selects `dist` and real 404 handling. Cloudflare's default build image supplies a supported Node version.
-- Each customized Worker uses a strict private build and `npx wrangler deploy --assets ./dist-private --name its-worker-name`. Keep names and output directories paired explicitly.
+- A customized Worker may keep `npm run build` and `npx wrangler deploy`: normal config selection already reads `SITE_CONFIG_JSON` and writes `dist/`. Missing environment and local config select the neutral sample; malformed supplied config fails. Confirm the selected source in build logs. Use `build:production` for production validation once placeholders are resolved. Optional strict private builds require private input and write `dist-private/`, paired with `npx wrangler deploy --assets ./dist-private --name its-worker-name`. Keep names and output directories paired explicitly; private input does not require a separate build command.
 - Supply real JSON as the encrypted build secret `SITE_CONFIG_JSON` under Builds settings, not runtime variables. Never print it. Restrict Workers receiving private inputs to trusted production-branch builds. The application checks `WORKERS_CI_BRANCH`; existing Pages builds retain `CF_PAGES_BRANCH` checks.
 - Add a custom domain through the Worker's Domains & Routes settings. Workers Custom Domains require an active Cloudflare zone for both apex domains and subdomains. Review existing DNS/mail records before changing nameservers; verify certificate activation and HTTPS before enabling live metadata.
 - Zone-level WAF rules apply to the custom hostname, not the separate `workers.dev` endpoint. Record the final `siteUrl` and test each endpoint separately.
@@ -433,11 +445,11 @@ Primary references: [build configuration](https://developers.cloudflare.com/work
 
 ### Cloudflare Free capabilities and limits
 
-The baseline must fit Workers Static Assets on Free and a Free Cloudflare zone, without paid WAF rules or a server-side script. Hosting guidance was checked on 2026-10-27; zone-security availability below was checked on 2026-10-26. Deployment guides must link current primary documentation and recheck limits when updated.
+The baseline must fit Workers Static Assets on Free and a Free Cloudflare zone, without paid WAF rules or a database. The shipped Worker adds routing and optional server-side verification and consumes Workers request/CPU quotas even when verification is disabled. Hosting guidance was updated on 2026-10-28; zone-security availability below was checked on 2026-10-26. Deployment guides must link current primary documentation and recheck limits when updated.
 
 | Capability | Free-tier boundary and project use |
 | --- | --- |
-| Static asset hosting, custom domains, HTTPS | Static asset requests are free and unlimited. Deployment builds have separate quotas; domain registration/renewal is separate. See [asset billing and limits](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/), [build limits](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/), and [domain setup](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/). |
+| Static asset hosting, custom domains, HTTPS | Assets-only serving is free and unlimited, but this deployment invokes a Worker before every request. Workers Free currently allows 100,000 requests per day per account and 10 ms CPU per invocation. Deployment builds have separate quotas; domain registration/renewal is separate. See [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), [asset billing and limits](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/), [build limits](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/), and [domain setup](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/). |
 | DDoS protection | Standard automatic, unmetered protection is included on Free; advanced capabilities vary by plan. See [DDoS availability](https://developers.cloudflare.com/ddos-protection/#availability). |
 | Managed WAF rules | The Cloudflare Free Managed Ruleset is enabled by default on Free and is a subset of the broader ruleset. Do not promise the full paid Cloudflare/OWASP rulesets. See [WAF setup](https://developers.cloudflare.com/waf/get-started/). |
 | Custom WAF rules and Managed Challenge | Free permits five custom rules per zone and supports Managed Challenge; regex and the Log action are unavailable. See [custom-rule availability](https://developers.cloudflare.com/waf/custom-rules/#availability). |
@@ -458,9 +470,24 @@ Keep Cloudflare WAF, Managed Challenges, Browser Integrity Check, and bot settin
 - Never log private JSON, parser excerpts, complete analytics payload URLs, or environment contents.
 - Preserve the same underlying landing content for crawlers, reviewers, and people. Optional browser assistance is a capability enhancement, not a content-access rule.
 
-Document targeted Managed Challenge rules and optional temporary stronger browser verification. Prefer evidence-based abuse rules over challenges on every visit. Blanket verification and Bot Fight Mode stay off in the recommended normal-traffic baseline; operators may enable them for observed abuse and must have a rollback path.
+Document targeted Managed Challenge rules and optional temporary stronger browser verification. Prefer evidence-based abuse rules in the normal-traffic baseline. An operator may explicitly choose an additional profile verification gate: a hostname/document-path WAF rule with Managed Challenge, regardless of an abuse signal. Keep this rule independent of Bot Fight Mode and browser-opening code; no paid provider integration, fake verification UI, or application deployment is required. Document path variants, query preservation, automatic challenge completion and clearance reuse, rule-order interactions, real-device testing, and disabling the rule to roll back. A visible checkbox on every visit is not guaranteed. Keep AI Labyrinth off for the application's intended public-page behavior because it injects invisible honeypot links. Blanket site-wide verification and Bot Fight Mode remain off in the recommended baseline.
 
 The dashboard guide must include an optional hostname-scoped site-wide Managed Challenge with a clear rollback procedure. Explain that blanket challenges can prevent the landing page and handoff script from loading, interrupt review systems, and require a second clearance after switching browser cookie stores. Added waits, prompts, false positives, and abandoned visits may reduce conversions; compare actual behavior before retaining stronger verification. Embedded browsers have [limited challenge support](https://developers.cloudflare.com/cloudflare-challenges/reference/supported-browsers/). Browser-opening code does not bypass WAF or bot verification. Never select challenge rules to hide content from platform reviewers or serve them a different page.
+
+### Branded Turnstile verification (implementation scope, 2026-10-28)
+
+Implement an optional verification page using the existing profile branding, a shared configurable verification theme, and Cloudflare's standard Turnstile widget. This is a real server-enforced gate, not an imitation challenge or client-side hiding of profile HTML. It is independent of native browser handoff. Existing configs and the neutral demo default to verification disabled.
+
+- Add `verification.enabled`, `sessionMinutes` (5–1440, default 60), `widgetTheme` (`auto`, `light`, `dark`), bounded text overrides under `copy`, and CSS overrides under `styles`. Inherit the profile theme and avatar, with verification-specific overrides applied last. Expose only the public widget key and necessary UI state to the client. Use an accessible status region, manual retry, loading/error/expiry states, a no-JavaScript explanation, and no analytics on the verification screen. Do not promise a checkbox every time.
+- Keep `npm run build` / `npx wrangler deploy`. Add a reusable Worker entry, an `ASSETS` binding, and Worker-first routing. Emit a versioned, allowlisted verification manifest inside the generated assets, never raw site configuration. The Worker must deny public manifest access and load it internally through the assets binding. Missing/malformed deployment metadata fails closed. The public example and offline snapshots remain neutral and functional.
+- Require runtime `TURNSTILE_SITE_KEY` (public), `TURNSTILE_SECRET_KEY`, and an independent random `VERIFICATION_SESSION_SECRET` of at least 32 characters when enabled. Secrets never enter build JSON, assets, Git, logs, or responses. Missing required runtime settings return an unavailable response for protected documents; they must not expose profile HTML.
+- For unverified profile document requests, return the branded page at the requested URL. Validate the Turnstile token server-side through Siteverify, checking success, hostname, action, and a nonce bound to a short-lived signed challenge cookie. Enforce same-origin submissions, HTTPS, bounded request bodies, and safe same-profile return paths. Preserve queries and fragments through verification without allowing external redirects. Expired, rejected, replayed, or unavailable verification must not grant a session.
+- Use HMAC-signed, expiring, host-only Secure/HttpOnly/SameSite=Lax cookies, bound to the origin and configured profile path. A valid session grants the same profile content to any visitor who presents it. Never use user-agent/referrer-based content selection. Run checks before serving HTML, including direct `/index.html` and directory aliases; reject ambiguous encoded paths. Only explicitly identified assets and the neutral demo remain public. Prevent shared caching of verification and protected HTML responses. Support HEAD without returning a body.
+- The verification POST and public verification JS/CSS live under reserved `/_verification/`; all other files under that namespace are inaccessible to visitors. Serve protected responses with the site's security headers; permit only the needed Turnstile script/frame/connect origins on the gate and retain strict CSP elsewhere. Keep the profile's ordinary links and browser opening unchanged after verification.
+- Configure Cloudflare so the branded page and submission can load before any broad Managed Challenge. The application session is distinct from Cloudflare's `cf_clearance`. Retain background managed/DDoS protections; document failure investigation and rolling back with `verification.enabled: false` plus rebuild. Static-only hosting cannot enforce this gate. Worker requests now consume Workers quotas; do not claim unlimited free dynamic requests.
+- Test config validation, neutral isolation, styling, direct-asset bypass attempts, signatures/tampering/expiry, cross-origin submissions, unsafe return URLs, nonce/action/hostname mismatch, Siteverify failures, cookie reuse, body limits, cache/security headers, and unchanged disabled behavior. Use mocked verification for automated tests; never claim it establishes physical Instagram or live challenge compatibility. The deployed Worker rejects official dummy keys. Provide dashboard activation and isolated test-key experimentation instructions, with verification disabled until runtime credentials are provisioned. The static preview and gated Pages builds must refuse to serve/publish an unenforced gate.
+
+This extends the earlier static-only release; multiple configured profiles in one build remain planned separately. Current deployment credentials, activation, and real-device results are operator tasks and must be reported separately from implementation tests.
 
 ### Threat and failure model
 
@@ -598,11 +625,24 @@ Existing configuration precedence, commands/output directories, production branc
 
 | Decision | Current default and resolution needed |
 | --- | --- |
-| Production deployment workflow per site | Prefer a separate Worker using the same public repository and isolated build settings. Choose local/CI output upload where public deployment associations are unacceptable; no private repo is presumed. |
-| Local management of many production configs | Existing `SITE_CONFIG_JSON` and ignored `config/site.json` cover the required behavior. Defer any named-profile selector or extra file layout until operator needs justify it; preserve current precedence if added. |
+| Production deployment workflow per site | Separate Workers remain supported for independent sites. For several profiles on one domain, the planned multi-profile workflow below should use one deployment. Choose local/CI output upload where public deployment associations are unacceptable; no private repo is presumed. |
+| Local management of many production configs | The current single-profile input is an interim workflow. Plan separate private profile files and a collection build, preserving existing single-profile commands and precedence. See the future scope below. |
 | Device support and experimental native defaults | Keep legacy configs direct, the new native example explicitly opted in, and automatic opening off. Real-device evidence must determine which strategies can be described as supported and whether experimental defaults should change. |
 
 The live demo hostname and each production site's branding, analytics/consent policy, and challenge thresholds are deployment choices, not reasons to fork the application. Select them when configuring deployments; do not invent live URLs or compatibility evidence in this brief. A hosted demo and real-device evidence remain deployment/release deliverables.
+
+### Planned multi-profile workflow (not implemented)
+
+The operator expects to manage several creators on one domain. The existing one-config build secret is acceptable for the current deployment, but manually replacing large JSON secrets or creating a separate Worker for each profile is not the intended long-term workflow for this use case.
+
+- Keep one public code repository, one shared renderer, one domain, and one deployment containing `/`, `/example/`, and a distinct path per configured profile.
+- Separate platform settings (origin and homepage branding) from individual profile settings (slug, content, destinations, appearance, images, and optional features). Store each profile independently outside GitHub; do not replace the current single JSON secret with a manually maintained combined secret.
+- The first increment should support a private local collection and an explicit preview/publish command. Render all profiles to static output, validate every profile and reserved/duplicate path before publishing, and preserve existing single-profile workflows. No new server or database is required for this increment.
+- A collection publish must include unchanged profiles. Editing one profile must preserve the others; removals must be explicit. Failed validation must leave the published deployment intact. Test cross-profile content/asset isolation and backups/restoration of private inputs.
+- Local publishing requires the private inputs on the publishing device and does not by itself retain GitHub-triggered production publishing. Document that trade-off. For office/home access and automatic builds, subsequently evaluate private cloud storage for profile inputs and images, authenticated build-time retrieval, and last-known-good deployment behavior if retrieval fails. Keep storage credentials in secrets, not profile content or public build logs. Storage choice, limits, cost, and backup policy remain unresolved.
+- An authenticated editor with draft, preview, and publish controls can follow if file editing becomes inconvenient. It is not a prerequisite for multiple profiles. Public visitors continue receiving complete pages, and displayed profile information remains public while source inputs stay out of GitHub.
+
+These are future requirements, not new commands or capabilities in the current release. Before implementation, finalize the collection schema, input selection, publication workflow, and migration/tests in this specification. Do not change a working deployment merely to record this roadmap.
 
 ## 14. Known limits and trade-offs
 

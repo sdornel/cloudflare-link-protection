@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeFeatures } from './features.mjs';
 import { isHTTPS } from '../src/client/browser-opening.js';
+import { normalizeVerification } from './verification-config.mjs';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
 export const PLACEHOLDER_URL = '/example/more-soon/';
@@ -133,5 +134,7 @@ export function validateConfig(config, { production = false } = {}) {
   const token = config.analytics?.cloudflareToken;
   if (typeof token !== 'string' || (token && !/^[a-f0-9]{32}$/i.test(token))) throw new Error('analytics.cloudflareToken must be empty or a 32-character Web Analytics token.');
   normalizeFeatures(config);
+  const verification = normalizeVerification(config.verification);
+  if (verification.enabled && !config.siteUrl) throw new Error('siteUrl is required when verification is enabled.');
   return config;
 }

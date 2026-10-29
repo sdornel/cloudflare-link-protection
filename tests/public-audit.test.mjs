@@ -7,6 +7,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { auditPublic, publicFiles } from '../scripts/check-public.mjs';
 import { root } from '../scripts/config.mjs';
+import { verificationCopy } from '../scripts/verification-config.mjs';
 
 async function copyPublicSource(dir) {
   for (const file of await publicFiles(root)) {
@@ -59,6 +60,17 @@ test('private landing branding is audited while shared default landing copy is a
   const defaults = JSON.parse(await readFile(path.join(dir, 'config/landing.example.json'), 'utf8'));
   const marker = randomUUID();
   await writeFile(path.join(dir, 'config/site.json'), JSON.stringify({ landing: { ...defaults, name: marker } }));
+  assert.equal((await auditPublic(dir)).privateChecked, true);
+  await appendFile(path.join(dir, 'README.md'), `\n${marker}\n`);
+  await assert.rejects(() => auditPublic(dir), error => error.message.includes('README.md') && !error.message.includes(marker));
+});
+
+test('private verification copy is audited while shared defaults are allowed', async t => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'verification-copy-audit-test-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await copyPublicSource(dir);
+  const marker = randomUUID();
+  await writeFile(path.join(dir, 'config/site.json'), JSON.stringify({ verification: { copy: { ...verificationCopy, heading: marker } } }));
   assert.equal((await auditPublic(dir)).privateChecked, true);
   await appendFile(path.join(dir, 'README.md'), `\n${marker}\n`);
   await assert.rejects(() => auditPublic(dir), error => error.message.includes('README.md') && !error.message.includes(marker));

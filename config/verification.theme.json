@@ -1,0 +1,20 @@
+{
+  "variables": {},
+  "rules": {
+    ".verification-page": { "width": "min(100%, 488px)", "padding-top": "clamp(42px, 9vh, 100px)" },
+    ".verification-page .avatar": { "width": "84px", "height": "84px", "font-size": "28px", "margin-bottom": "20px" },
+    ".verification-brand": { "margin": "0 0 30px", "font-size": "16px", "font-weight": "600", "letter-spacing": "0.02em" },
+    ".verification-page h1": { "font-size": "clamp(25px, 6vw, 32px)", "text-wrap": "balance" },
+    ".verification-page .bio": { "font-size": "16px", "margin-top": "14px" },
+    ".verification-card": { "margin-top": "28px", "padding": "24px 16px", "border": "1px solid var(--border)", "border-radius": "24px", "background": "var(--link-background)", "box-shadow": "var(--link-hover-shadow)" },
+    ".verification-widget": { "min-height": "70px", "width": "100%", "display": "grid", "justify-items": "center" },
+    ".verification-status": { "margin": "16px 0", "color": "var(--muted)", "font-size": "14px", "line-height": "1.6", "overflow-wrap": "anywhere" },
+    ".verification-card .quiet-button": { "width": "100%", "margin-top": "4px" },
+    ".verification-page .footer": { "max-width": "300px", "margin-inline": "auto" },
+    ".verification-card noscript p": { "font-size": "14px", "line-height": "1.6" }
+  },
+  "media": {
+    "(max-width: 350px)": { ".verification-page": { "padding-inline": "8px" }, ".verification-card": { "padding-inline": "10px" } },
+    "(forced-colors: active)": { ".verification-card": { "border": "1px solid CanvasText" } }
+  }
+}

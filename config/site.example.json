@@ -51,6 +51,13 @@
     "faviconText": "#314d7b"
   },
   "styles": {},
+  "verification": {
+    "enabled": false,
+    "sessionMinutes": 60,
+    "widgetTheme": "auto",
+    "copy": {},
+    "styles": {}
+  },
   "schemaVersion": 2,
   "browserOpening": {
     "mode": "native",

@@ -54,7 +54,10 @@ test('explicit example build ignores private inputs and emits direct functional 
   assert.doesNotMatch(html, /id="publish-guide"|Publish with Cloudflare|Software engineer|Demo ·|class="preview-note"/);
   assert.doesNotMatch(html, /PRIVATE_MARKER|http-equiv=["']refresh|target=["']_blank|onclick=/i);
   assert.match(await readFile(path.join(outDir, 'robots.txt'), 'utf8'), /User-agent: \*\nAllow: \//);
-  assert.deepEqual((await readdir(outDir)).sort(), ['404.html', '_headers', 'example', 'favicon.svg', 'index.html', 'robots.txt', 'styles.css']);
+  assert.deepEqual((await readdir(outDir)).sort(), ['404.html', '_headers', '_verification', 'example', 'favicon.svg', 'index.html', 'robots.txt', 'styles.css']);
+  const manifest = JSON.parse(await readFile(path.join(outDir, '_verification/manifest.json'), 'utf8'));
+  assert.equal(manifest.enabled, false);
+  assert.deepEqual(Object.keys(manifest).sort(), ['enabled', 'responseHeaders', 'version']);
 });
 
 test('default build uses local config, styles and private images, then falls back when the file is absent', async (t) => {

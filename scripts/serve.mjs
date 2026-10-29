@@ -10,6 +10,16 @@ export function createPreviewHandler(directory) {
   const dir = path.resolve(directory);
   return async (req, res) => {
     try {
+      // This server intentionally does not emulate Cloudflare or issue verification
+      // sessions. Refuse gated builds rather than previewing protected HTML openly.
+      let deployment;
+      try { deployment = JSON.parse(await readFile(path.join(dir, '_verification/manifest.json'), 'utf8')); }
+      catch (error) { if (error.code !== 'ENOENT') throw error; }
+      if (deployment?.enabled) {
+        res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(req.method === 'HEAD' ? undefined : 'Verification is enabled. Use the Cloudflare Worker deployment to test this gate; the static preview cannot enforce it. See docs/verification.md.');
+        return;
+      }
       if (!['GET', 'HEAD'].includes(req.method)) {
         res.writeHead(405, { Allow: 'GET, HEAD' }).end();
         return;

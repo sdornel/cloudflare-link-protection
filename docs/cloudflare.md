@@ -1,6 +1,6 @@
 # Cloudflare Workers from a public GitHub repository
 
-Use Workers Static Assets for new deployments. Cloudflare now recommends Workers for new projects; Pages remains available for existing deployments. The repository's `wrangler.jsonc` serves `dist/` without a Worker script, runtime secrets, or bindings. [Cloudflare's recommendation](https://developers.cloudflare.com/pages/) and [Static Assets](https://developers.cloudflare.com/workers/static-assets/).
+Use Workers Static Assets for new deployments. Cloudflare now recommends Workers for new projects; Pages remains available for existing deployments with branded verification disabled. The repository's `wrangler.jsonc` runs the shared Worker before serving `dist/` through its `ASSETS` binding. Runtime keys are needed only for the optional Turnstile gate. [Cloudflare's recommendation](https://developers.cloudflare.com/pages/) and [Static Assets](https://developers.cloudflare.com/workers/static-assets/).
 
 Use separate Workers for independently deployed sites, or publish the platform landing, neutral demo, and configured profile path on one Worker. The root `example.html` is an offline reference; deployment serves generated HTML. The normal build selects `SITE_CONFIG_JSON`, then ignored `config/site.json`, then the neutral sample. Deploy the entire chosen output directory.
 
@@ -23,7 +23,7 @@ Keep automatic dependency installation enabled: the generator needs only Node, b
 
 Cloudflare's default build image provides a supported Node version; no version override is needed. [Build image defaults](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/).
 
-Leave runtime variables, secrets, and bindings empty too. With no `SITE_CONFIG_JSON` and no ignored local config in the Git checkout, `npm run build` selects the public sample on production and preview branches. The optional `build:example` command remains available to force the sample during local checks. If you choose a different Worker name, update the config's name or pass `--name your-worker-name` to Wrangler.
+Leave runtime variables and secrets empty for the demo; Wrangler creates the `ASSETS` binding. With no `SITE_CONFIG_JSON` and no ignored local config in the Git checkout, `npm run build` selects the public sample on production and preview branches. The optional `build:example` command remains available to force the sample during local checks. If you choose a different Worker name, update the config's name or pass `--name your-worker-name` to Wrangler.
 
 Commit and push reviewed application files, including `wrangler.jsonc` and the package lock, before deploying. Git integration builds the GitHub commit, not files saved only on your computer. Keep real config and generated directories ignored. After a successful deployment, open the assigned HTTPS `workers.dev` URL; the landing links to the demo at `/example/`. No custom domain is needed for the demo.
 
@@ -31,26 +31,30 @@ Commit and push reviewed application files, including `wrangler.jsonc` and the p
 
 Use the existing Worker to host the platform landing, neutral demo, and configured profile path, or create a separate Worker for an independently deployed site. Multiple domains on a Worker are aliases for the same output. Production inputs belong under **Settings → Builds → Variables and secrets**, not the separate runtime-variable section.
 
-1. Add the full JSON as an encrypted **build secret** named `SITE_CONFIG_JSON`, without shell quotes or a `SITE_CONFIG_JSON=` prefix. Never print it.
-2. Set the build command to `npm run build:private` while reviewing placeholders, then `npm run build:private:production` once the domain and destinations are ready.
-3. Set the deploy command to `npx wrangler deploy --assets ./dist-private --name your-site-worker`. Replace the example name with that Worker's exact name. When reusing the existing Worker, use its existing name; this updates the landing, demo, and profile together.
-4. Disable non-production branch builds for this Worker before adding private inputs. Use the neutral Worker for pull-request previews. A branch guard cannot protect a secret from untrusted build code that can read the environment. [Branch controls](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/).
-5. If the production branch is not `main`, set `SITE_PRODUCTION_BRANCH`. The builder validates `WORKERS_CI_BRANCH` during Workers builds and rejects customized builds on other branches. Missing private input fails the strict build without falling back to the demo.
-6. Redeploy after configuration changes. Runtime secrets cannot change already-generated HTML.
+1. Disable non-production branch builds for this Worker before adding private inputs. Use the neutral Worker for pull-request previews. A branch guard cannot protect a secret from untrusted build code that can read the environment. [Branch controls](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/).
+2. Add the full JSON as an encrypted **build secret** named `SITE_CONFIG_JSON`, without shell quotes or a `SITE_CONFIG_JSON=` prefix. Never print it.
+3. Keep the build command as `npm run build`. It already reads the secret and writes `dist/`; no separate private command is needed to use private input.
+4. Keep the deploy command as `npx wrangler deploy` when using the Worker named in `wrangler.jsonc`. For a differently named Worker, use `npx wrangler deploy --name your-site-worker`. This publishes the landing, demo, and profile together from `dist/`.
+5. If the production branch is not `main`, set `SITE_PRODUCTION_BRANCH`. The builder validates `WORKERS_CI_BRANCH` during Workers builds and rejects customized builds on other branches. A normal build without environment or local config selects the sample; confirm the build log says `using SITE_CONFIG_JSON` for a configured deployment. Malformed supplied config fails instead of falling back.
+6. Redeploy after configuration changes. Runtime secrets cannot change already-generated HTML. Once real destinations are configured and placeholders disabled, `npm run build:production` adds production validation while retaining `dist/` and the same deploy command.
 
-Ignored local images are unavailable to Git-backed builds. Use HTTPS image URLs, initials, or build locally using `.private/assets/` and deploy the resulting `dist-private/` directory.
+The optional `npm run build:private` requires private input and writes `dist-private/`; pair it with `npx wrangler deploy --assets ./dist-private --name your-site-worker`. Its production variant is `npm run build:private:production`. These commands remain available when a missing private input should fail the build, but are not prerequisites for using private configuration.
+
+Ignored local images are unavailable to Git-backed builds. Use HTTPS image URLs, initials, or build locally using `.private/assets/` and deploy the generated output directory (`dist/` for a normal build).
 
 Encrypted input stays outside Git, but the rendered profile is public. GitHub deployment checks may expose its URL. If this association matters, build locally from the same repository and deploy the output without Git integration. Only trusted code should run with production build secrets.
 
 ### Landing, demo, and profile on the same Worker
 
-Set `"profilePath": "/sample-creator"` in the complete private config and keep `siteUrl` as the HTTPS origin, for example `https://example.com`. The build emits the platform landing at `/`, the neutral demo at `/example/`, and `/sample-creator/index.html` with its own assets. Optional `landing` settings in the private config customize only the homepage. Deploy all of `dist-private`; do not point Wrangler at the profile subfolder. This needs no extra custom domain or DNS entry. Omitted `profilePath` (or `/`) keeps the configured page at the root.
+Set `"profilePath": "/sample-creator"` in the complete private config and keep `siteUrl` as the HTTPS origin, for example `https://example.com`. The build emits the platform landing at `/`, the neutral demo at `/example/`, and `/sample-creator/index.html` with its own assets. Optional `landing` settings in the private config customize only the homepage. Deploy all of `dist/` (or `dist-private/` if using the optional private command); do not point Wrangler at the profile subfolder. This needs no extra custom domain or DNS entry. Omitted `profilePath` (or `/`) keeps the configured page at the root.
 
 Push the generic path-support code before deploying, then paste the updated **complete** config into the build secret and trigger a new production build. Confirm `/` shows the landing, its example button opens `/example/`, `/sample-creator` opens the configured page, and `/missing` returns 404. Keep the real config and slug out of GitHub. One configured creator alongside the landing and demo is supported per build.
 
 Workers' default HTML handling redirects a directory page from `/sample-creator` to `/sample-creator/`. Both forms are valid entry URLs and generated asset URLs work from either. [HTML handling](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/).
 
 ## Custom domain and HTTPS
+
+For an optional verification page with your own branding, follow [Turnstile setup](verification.md). That feature uses **runtime** secrets as well as build-time profile settings. The existing commands remain unchanged. A broad Managed Challenge rule must be adjusted so the branded verification page and its submission can load first.
 
 Workers Custom Domains require an active Cloudflare zone for both apex domains and subdomains. Review existing DNS and mail records before changing nameservers. In the Worker, open **Settings → Domains & Routes → Add → Custom Domain**. Cloudflare creates the DNS record and manages the certificate. Resolve any existing conflicting hostname record and verify HTTPS before enabling production metadata. [Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 
@@ -68,9 +72,9 @@ npx wrangler dev --local
 
 `check:workers` builds the neutral sample and runs a deployment dry run without publishing. Wrangler's local server applies Cloudflare static routing and `_headers`; the simpler `npm run preview` server supports profile directory indexes, slash normalization, and real 404s, but does not emulate edge headers or challenges. The config uses `not_found_handling: "404-page"` for real missing-page responses. [Static routing](https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/) and [headers](https://developers.cloudflare.com/workers/static-assets/headers/).
 
-For a manual demo deployment, authenticate with `npx wrangler login`, build the sample, then run `npx wrangler deploy`. For a configured site, build privately and use the explicit `--assets ./dist-private --name your-site-worker` command above. Authentication state stays outside the repository; `.wrangler/` is ignored. Deploying publishes the rendered content.
+For a manual demo deployment, authenticate with `npx wrangler login`, build the sample, then run `npx wrangler deploy`. For a configured site, `npm run build` reads the ignored local config or environment input; deploy with `npx wrangler deploy`, adding `--name your-site-worker` if needed. Pair the optional private command with its explicit `--assets ./dist-private` override as described above. Authentication state stays outside the repository; `.wrangler/` is ignored. Deploying publishes the rendered content.
 
-Use the Worker's deployment history to roll back to a successful version. [Rollbacks](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/). Static asset requests are free and unlimited; builds have separate quotas. Review [asset limits](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/) and [build limits](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/) as usage grows.
+Use the Worker's deployment history to roll back to a successful version. [Rollbacks](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/). Assets-only requests have different allowances from requests invoking a Worker. The current configuration invokes the Worker before assets, including when verification is disabled; account [Workers quotas](https://developers.cloudflare.com/workers/platform/limits/) apply. Builds have separate [quotas](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/).
 
 For staging, use another Worker with synthetic inputs, its own hostname and analytics identifier, and an explicit production branch if needed. Browser handoff can change cookies or challenge clearance; it does not bypass Cloudflare.
 

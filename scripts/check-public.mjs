@@ -3,6 +3,7 @@ import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readJSON, root } from './config.mjs';
+import { verificationCopy } from './verification-config.mjs';
 
 // Explicit source roots also make the pre-Git review possible without including local artifacts.
 export const sourceRoots = ['.gitignore', 'README.md', 'SPEC.md', 'example.html', 'more-soon.html', 'package.json', 'package-lock.json', 'LICENSE', 'CONTRIBUTING.md', 'playwright.config.mjs', 'wrangler.jsonc', '.github', 'config', 'docs', 'public', 'scripts', 'src', 'tests'];
@@ -50,10 +51,11 @@ export async function auditPublic(projectRoot = root) {
       config.name, config.bio, config.description, config.siteUrl, config.profilePath, config.profilePath?.slice(1), config.seo?.title,
       config.profile?.image, config.seo?.image, config.analytics?.cloudflareToken, config.analytics?.ga4MeasurementId,
       ...Object.values(config.landing ?? {}).filter(value => typeof value === 'string'),
+      ...Object.values(config.verification?.copy ?? {}).filter(value => typeof value === 'string'),
       ...[config.primaryLink, ...(config.secondaryLinks ?? [])].flatMap((link) => [link?.label?.toLowerCase() === 'instagram' ? undefined : link?.label, link?.url]),
     ].filter((value) => typeof value === 'string' && value.length >= 8);
     const landingDefaults = await readJSON(path.join(projectRoot, 'config/landing.example.json'), 'Public landing defaults');
-    const shared = new Set(displayStrings({ ...publicConfig, landing: landingDefaults }));
+    const shared = new Set([...displayStrings({ ...publicConfig, landing: landingDefaults }), ...Object.values(verificationCopy)]);
     markers.push(...displayStrings(privateConfig).filter((value) => !shared.has(value)));
     privateChecked = true;
   }

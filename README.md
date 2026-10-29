@@ -38,6 +38,7 @@ These captures predate the generic bio and the removal of the demo notice and pu
 - Native iOS scheme and Android intent strategies, manual Open in Browser, direct fallbacks, and loop guards.
 - Optional experimental automatic iOS page handoff, off by default; Android defers to a tap.
 - Optional 18+ acknowledgment, Cloudflare visit/performance analytics, and GA4 interaction events.
+- Optional branded Turnstile verification, enforced by the Worker with signed sessions; configuration controls copy and styling. Disabled until configured. [Activation guide](docs/verification.md).
 - Safe config serialization, security headers, selective image copying, and public-source checks.
 - Unit/integration tests, a development-only Playwright suite, and neutral-input CI.
 
@@ -85,7 +86,8 @@ flowchart LR
   C[Theme and template] --> D[Shared static renderer]
   B --> D
   D --> E[HTML, CSS and selected assets]
-  E --> F[Ordinary functional links]
+  E --> W[Worker with optional Turnstile gate]
+  W --> F[Ordinary functional links]
   E --> G[Optional client modules]
   G --> H[Native handoff and direct fallback]
   G --> I[Optional acknowledgment and analytics]
@@ -95,13 +97,13 @@ flowchart LR
 
 ## Cloudflare Workers
 
-Keep the Worker connected to this repository. Set **build** to `npm run build`, **deploy** to `npx wrangler deploy`, and **root** to `/`. Leave build variables and secrets empty and keep dependency installation enabled. With no private config in the Git checkout, the build uses the neutral sample. No runtime variables or bindings are needed.
+Keep the Worker connected to this repository. Set **build** to `npm run build`, **deploy** to `npx wrangler deploy`, and **root** to `/`. Leave build variables and secrets empty for the neutral demo and keep dependency installation enabled. With no private config in the Git checkout, the build uses the neutral sample. Wrangler configures the `ASSETS` binding; runtime keys are needed only when branded verification is enabled.
 
-`wrangler.jsonc` serves `dist/` with security headers and real 404 responses. Its name matches `cloudflare-link-protection`. Review the deployment locally with `npm ci` followed by `npm run check:workers`; this does not publish anything.
+`wrangler.jsonc` runs the shared Worker before serving `dist/`, with security headers and real 404 responses. Its name matches `cloudflare-link-protection`. Worker requests have separate Free-plan quotas from assets-only hosting; see [verification hosting details](docs/verification.md#costs-and-hosting). Review the deployment locally with `npm ci` followed by `npm run check:workers`; this does not publish anything.
 
-Use separate Workers for independently deployed sites, or publish the landing, demo, and configured profile on the same Worker. Build with `npm run build:private:production`, supply `SITE_CONFIG_JSON` as a build secret, and deploy with `npx wrangler deploy --assets ./dist-private --name your-site-worker`. Use `build:private` while reviewing placeholders. Disable non-production branch builds on Workers that receive private inputs.
+Use separate Workers for independently deployed sites, or publish the landing, demo, and configured profile on the same Worker. Supply `SITE_CONFIG_JSON` as a build secret and keep `npm run build` and `npx wrangler deploy`; the normal build already reads private input and writes `dist/`. Add `--name your-site-worker` if the Worker name differs from `wrangler.jsonc`. Disable non-production branch builds before adding private inputs. Once real destinations are ready, `npm run build:production` adds production validation. Optional `build:private` commands require private input and use `dist-private/`; see the deployment guide for their matching deploy command.
 
-Follow [Cloudflare deployment](docs/cloudflare.md) for setup, domains, HTTPS, independent sites, and rollback. [Security](docs/security.md) covers WAF and Managed Challenge. Existing Pages projects can still serve the generated output, but [Cloudflare recommends Workers for new projects](https://developers.cloudflare.com/pages/).
+Follow [Cloudflare deployment](docs/cloudflare.md) for setup, domains, HTTPS, independent sites, and rollback. [Security](docs/security.md) covers WAF and Managed Challenge; [branded verification](docs/verification.md) covers Turnstile and runtime keys. Existing Pages projects can serve generated output with verification disabled; the gate requires the Worker script. [Cloudflare recommends Workers for new projects](https://developers.cloudflare.com/pages/).
 
 ## Verify and contribute
 

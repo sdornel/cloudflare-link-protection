@@ -51,6 +51,7 @@ Create `config/site.json` by copying the sample on a fresh clone; do not overwri
 | `analytics.cloudflareToken` | Optional public Web Analytics site token |
 | `appearance` | Browser theme color, color scheme, favicon colors |
 | `styles` | Overrides to the shared `config/theme.json` |
+| `verification` | Optional branded Turnstile gate: enabled flag, session duration, widget theme, copy, and style overrides; runtime credentials stay outside JSON |
 
 Icons are `none`, `arrow`, or `heart`. Destinations require HTTPS except for the exact built-in placeholder `/example/more-soon/`, permitted only when `placeholderLinks` is true. That internal route always uses direct navigation; it does not attempt browser handoff. Other relative paths, query variations, and protocol-relative URLs are rejected. To use a final site, replace placeholder links with HTTPS destinations, set `siteUrl`, and set `placeholderLinks: false`. The production build rejects an unset origin or unfinished placeholders; it cannot verify ownership or availability of destinations.
 
@@ -97,6 +98,8 @@ Optional text fields are `name`, `initials`, `eyebrow`, `headline`, `description
 The CTA destination stays `/example/`. Creator content and styling are never implicitly copied to the homepage. Landing overrides never affect the neutral demo or creator page. Keep real platform branding in ignored config; the source audit checks it too. Explicit example builds ignore all private overrides. Update the complete Cloudflare build secret after editing your private landing config and redeploy all output files together.
 
 ## Styling
+
+The verification screen inherits profile branding and `styles`, then applies `config/verification.theme.json` and private `verification.styles`. See [verification configuration](verification.md#appearance-and-copy) for its text fields, schema, runtime setup, and examples. Verification defaults off; enabling it requires Workers hosting and runtime credentials. Static preview refuses an enabled gate.
 
 All CSS for the configurable page lives in `config/theme.json`. The standalone `example.html` embeds a neutral snapshot produced by the same renderer; refresh it explicitly after changing the shared theme. Theme sections are:
 

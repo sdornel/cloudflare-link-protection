@@ -1,6 +1,6 @@
 # Security and browser verification
 
-This is a static public page. It has no database, login, upload endpoint, or application server. Supplied headers restrict scripts, framing, MIME sniffing, and browser capabilities. HTTPS links are direct and visitors receive the same HTML regardless of user-agent, referrer, or IP.
+The profile is generated as a public page with no database, login, or upload endpoint. An optional Worker-enforced Turnstile gate adds a verification POST and signed session cookies; see [branded verification](verification.md). Supplied headers restrict scripts, framing, MIME sniffing, and browser capabilities. HTTPS links are direct and visitors receive the same underlying profile regardless of user-agent, referrer, or IP.
 
 Cloudflare protection is configured on the proxied custom domain; it is not active when opening the file locally. Review security events after enabling a rule.
 
@@ -11,6 +11,7 @@ Cloudflare protection is configured on the proxied custom domain; it is not acti
 | Browser Integrity Check | Keep its default initially; investigate false positives |
 | Bot Fight Mode | Off initially for a public page used in embedded browsers |
 | Custom Managed Challenge | Use for observed abusive requests |
+| Optional profile verification gate | Explicit operator choice; use the document-path rule below |
 | Blanket challenge / Under Attack Mode | Off during normal traffic |
 
 The Free Managed Ruleset is a subset of paid rules. Free plans currently support five custom rules including Managed Challenge; regex and the Log action are not available on Free. [WAF setup](https://developers.cloudflare.com/waf/get-started/), [custom-rule availability](https://developers.cloudflare.com/waf/custom-rules/).
@@ -33,6 +34,34 @@ Choose **Managed Challenge**, deploy, and inspect matching events. This is manua
 Replace `/sample-creator` with the actual configured profile path, keeping its slash and index variants. A rule matching only `/` does not cover a nested creator page. This example targets document routes so that images, stylesheets, and modules can load normally. It does not challenge the entire site or activate automatically for all suspected bots.
 
 Do not use old threat-score recipes: `cf.threat_score` now always returns zero. [Threat score](https://developers.cloudflare.com/ruleset-engine/rules-language/fields/reference/cf.threat_score/). Enterprise Bot Management scores are not part of the free configuration. [Feature interoperability](https://developers.cloudflare.com/waf/feature-interoperability/).
+
+## Optional verification before a profile page
+
+An operator may explicitly choose a Cloudflare verification step before a public profile, even without an abuse signal. This uses a zone WAF custom rule with Managed Challenge, available on Free, without adding a provider integration or client-side imitation. It is separate from background WAF/Bot Fight Mode detection. A normal or private browser visit without a visible challenge does not prove those background protections are disabled.
+
+Open **Security → Security rules → Create rule → Custom rules**, name the rule `Profile verification`, and enter this expression after replacing the example hostname and profile path:
+
+```text
+(http.host eq "links.example.com"
+ and http.request.uri.path in {"/sample-creator" "/sample-creator/" "/sample-creator/index.html"})
+```
+
+Choose **Managed Challenge** and deploy. This matches profile documents without an IP, user-agent, referrer, or bot-score condition. The hostname/path match does not modify query parameters or the underlying page. The homepage, demo, assets, and Cloudflare challenge endpoints are outside this rule. Add other profile paths and their variants deliberately when available; the application currently builds one configured profile.
+
+Cloudflare chooses the challenge interaction and may verify a browser automatically. An existing `cf_clearance` cookie can suppress repeated challenges for the configured Challenge Passage duration. Challenge Passage controls clearance lifetime; it does not enable a challenge by itself. Do not promise a visible checkbox on every visit or claim this reproduces another provider's implementation. [Challenge behavior](https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/) and [Challenge Passage](https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/challenge-passage/).
+
+Test in a fresh browser context and from the actual mobile app, checking the profile and direct links after verification. Review **Security → Analytics → Events** for the rule name/action; Free logs are sampled. Existing blocking or Skip rules may affect the result. To roll back, disable this custom rule. No application deployment is required. This rule covers the custom hostname only; alternative Worker URLs need their own access policy.
+
+Cloudflare challenge compatibility still applies: visitors and automated reviewers can be unable to pass, and moving to an external browser may require another clearance. Keep the same underlying profile for everyone. A verification gate neither guarantees platform-policy compliance nor guarantees access for every review system.
+
+## Settings that are not required for this page
+
+Enabling every dashboard feature is not necessary to implement profile verification. Keep the baseline managed rules, DDoS protection, and Browser Integrity Check; evaluate other settings separately.
+
+- Leave **AI Labyrinth** off for this application. It injects invisible honeypot links into HTML, which is outside the intended unmodified public-page behavior; its events do not themselves block or challenge requests. [AI Labyrinth](https://developers.cloudflare.com/bots/additional-configurations/ai-labyrinth/).
+- **Bot Fight Mode** is independent of the profile challenge rule, can affect mobile-app traffic, and cannot be skipped with a WAF custom rule. Keep it off initially while verifying the intended gate. [Bot Fight Mode](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/).
+- Client-certificate/mTLS enforcement, leaked-password detection, and authentication rate limits are not needed for the public links page, which has no login. Branded verification adds a specific POST endpoint; do not treat it as an unknown API endpoint in fallthrough rules. A dashboard link to create a rule does not indicate that a rule has been deployed.
+- AI crawler policies, email obfuscation, hotlink protection, and script monitoring serve separate purposes; none creates the requested profile challenge. Enable them only for a specific requirement and verify the resulting page behavior.
 
 ## Stronger checks and temporary site-wide protection
 

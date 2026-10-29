@@ -82,7 +82,10 @@ test('nested build separates root content and styles; all profile assets and SEO
   assert.equal((sitemap.match(/<loc>/g) ?? []).length, 1);
   assert.match(await readFile(path.join(outDir, 'robots.txt'), 'utf8'), /Sitemap: https:\/\/profile.example\/sitemap.xml/);
   assert.doesNotMatch(await readFile(path.join(outDir, '404.html'), 'utf8'), /SYNTHETIC_CREATOR|sample-creator/);
-  assert.ok(!(await readdir(outDir, { recursive: true })).some(file => file.endsWith('.json')));
+  assert.deepEqual((await readdir(outDir, { recursive: true })).filter(file => file.endsWith('.json')).map(file => file.replaceAll('\\', '/')), ['_verification/manifest.json']);
+  const manifest = JSON.parse(await readFile(path.join(outDir, '_verification/manifest.json'), 'utf8'));
+  assert.equal(manifest.enabled, false);
+  assert.equal(manifest.template, undefined);
 });
 
 test('preview routes slashless entry with intact queries, serves the page and assets, and returns real 404s', async (t) => {

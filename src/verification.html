@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="{{BACKGROUND}}">
+    <meta name="color-scheme" content="{{COLOR_SCHEME}}">
+    <title>{{HEADING}} | {{NAME}}</title>
+    <link rel="icon" href="{{FAVICON}}" type="image/svg+xml">
+    <link rel="stylesheet" href="/_verification/styles.css?v={{VERSION}}">
+    <script src="/_verification/client.js?v={{VERSION}}" defer></script>
+  </head>
+  <body>
+    <main class="page verification-page">
+      <div class="avatar">{{AVATAR}}</div>
+      <p class="verification-brand">{{NAME}}</p>
+      <h1>{{HEADING}}</h1>
+      <p class="bio">{{DESCRIPTION}}</p>
+      <section class="verification-card" aria-label="Security verification">
+        <form id="verification-form" action="/_verification/verify" method="post"
+          data-sitekey="{{VERIFICATION_SITE_KEY}}" data-flow="{{VERIFICATION_FLOW}}"
+          data-theme="{{WIDGET_THEME}}" data-state="{{VERIFICATION_STATE}}">
+          <input type="hidden" name="returnTo" value="{{VERIFICATION_RETURN_TO}}">
+          <input type="hidden" name="token" value="">
+          <div id="verification-widget" class="verification-widget"></div>
+          <p id="verification-status" class="verification-status" role="status" aria-live="polite">{{VERIFICATION_STATUS}}</p>
+          <button id="verification-retry" class="quiet-button" type="button" hidden>{{RETRY}}</button>
+          <noscript><p>{{NO_SCRIPT}}</p></noscript>
+        </form>
+      </section>
+      <footer class="footer"><p>{{FOOTER}}</p></footer>
+      <div id="verification-copy" hidden>{{MESSAGES}}</div>
+    </main>
+  </body>
+</html>
