@@ -1,5 +1,6 @@
 import { escapeHTML, PLACEHOLDER_URL } from './config.mjs';
 import { publicOptions } from './features.mjs';
+import { HANDOFF_MARKER } from '../src/client/browser-opening.js';
 import { setupGuide } from './setup-guide.mjs';
 
 export const safeJSON = (value) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
@@ -21,6 +22,11 @@ export function renderPage({ config, template, profile, share, assetVersion, cli
   const pagePath = config.profilePath && config.profilePath !== '/' ? `${config.profilePath}/` : '/';
   const assetBase = pagePath === '/' ? './' : pagePath;
   const siteURL = config.siteUrl ? new URL(pagePath, config.siteUrl).href : '';
+  // A deferred module may otherwise leave visible CTAs unwired on a cold load.
+  // Head placement + render blocking makes handlers ready at first paint on
+  // supporting browsers. Failed/disabled scripts still expose static anchors.
+  const needsHandlers = config.ageAcknowledgment.enabled || config.browserOpening.mode === 'native'
+    || [config.primaryLink, ...config.secondaryLinks.filter(link => link.enabled)].some(link => link.openingMode === 'native');
   const seo = [];
   if (siteURL) {
     seo.push(`<link rel="canonical" href="${escapeHTML(siteURL)}">`, `<meta property="og:url" content="${escapeHTML(siteURL)}">`);
@@ -39,7 +45,7 @@ export function renderPage({ config, template, profile, share, assetVersion, cli
     SETUP_GUIDE: showSetupGuide ? setupGuide() : '',
     ENHANCEMENTS: enhanced ? enhancements(config) : '',
     AGE_NOTICE: config.ageAcknowledgment.enabled ? ageNotice(config) : '',
-    CLIENT: enhanced ? `<script id="profile-options" type="application/json">${safeJSON(publicOptions(config))}</script><script type="module" src="${assetBase}assets/${clientVersion}/app.js"></script>` : '',
+    CLIENT: enhanced ? `<script id="profile-options" type="application/json">${safeJSON(publicOptions(config))}</script><script type="module" src="${assetBase}assets/${clientVersion}/app.js"${needsHandlers ? ' blocking="render"' : ''}></script>` : '',
     ANALYTICS: config.analytics.cloudflareToken ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${config.analytics.cloudflareToken}"}'></script>` : '',
   };
   const html = template.replace(/\{\{([A-Z_]+)\}\}/g, (_, key) => {
@@ -52,7 +58,9 @@ export function renderPage({ config, template, profile, share, assetVersion, cli
 export function renderMoreSoon({ template, css, assetVersion, standalone = false }) {
   const tokens = {
     STYLES: standalone ? `<style>\n${css}</style>` : `<link rel="stylesheet" href="/example/styles.css?v=${assetVersion}">`,
-    BACK_URL: standalone ? './example.html' : '/example/',
+    // Returning from the neutral destination must not start another entry
+    // attempt, including in webviews that drop or block session storage.
+    BACK_URL: standalone ? './example.html' : `/example/?${HANDOFF_MARKER}=1`,
   };
   return template.replace(/\{\{([A-Z_]+)\}\}/g, (_, key) => {
     if (!(key in tokens)) throw new Error('Unknown placeholder template token.');

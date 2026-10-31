@@ -9,12 +9,12 @@ const destination = 'https://example.com/projects?a=1&a=2&encoded=%20#latest';
 
 // Serve a real synthetic build, including its CSP. Only the OS launch boundary
 // is replaced: the production app initializes and handles every click itself.
-async function fixture(page, { platform = 'ios', failLaunch = false, blockedStorage = false, autoOpen = false, showManual = true, age = false, ageScope = 'all', analytics = false, mode = 'native', profilePath = '/', hostedExample = false } = {}) {
+async function fixture(page, { platform = 'ios', failLaunch = false, blockedStorage = false, autoOpen = false, androidAutoOpen = false, showManual = true, age = false, ageScope = 'all', analytics = false, mode = 'native', profilePath = '/', hostedExample = false, diagnostics = false } = {}) {
   const config = JSON.parse(await readFile(new URL('../../config/site.example.json', import.meta.url), 'utf8'));
   config.siteUrl = origin;
   config.profilePath = profilePath;
   config.primaryLink.url = destination;
-  config.browserOpening = { ...config.browserOpening, mode, autoOpen, showManual, fallbackDelayMs: 800 };
+  config.browserOpening = { ...config.browserOpening, mode, autoOpen, androidAutoOpen, showManual, fallbackDelayMs: 800 };
   config.ageAcknowledgment.enabled = age;
   config.ageAcknowledgment.scope = ageScope;
   if (analytics) config.analytics.ga4MeasurementId = 'G-TEST1234';
@@ -50,7 +50,8 @@ async function fixture(page, { platform = 'ios', failLaunch = false, blockedStor
       window.addEventListener('profile:analytics', event => window.__events.push(event.detail));
       if (blockedStorage) Object.defineProperty(window, 'sessionStorage', { get() { throw new Error('Storage blocked'); } });
     }, { platform, failLaunch, blockedStorage });
-    await page.goto(`${origin}${hostedExample ? '/example/' : profilePath === '/' ? '/' : `${profilePath}/`}?source=test#links`);
+    const hash = hostedExample && platform === 'android' ? '' : '#links';
+    await page.goto(`${origin}${hostedExample ? '/example/' : profilePath === '/' ? '/' : `${profilePath}/`}?source=test${diagnostics ? '&handoff_debug=1' : ''}${hash}`);
     await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
     return async () => { await page.unrouteAll({ behavior: 'wait' }); await rm(directory, { recursive: true, force: true }); };
   } catch (error) {
@@ -62,21 +63,21 @@ async function fixture(page, { platform = 'ios', failLaunch = false, blockedStor
 
 for (const platform of ['ios', 'android']) {
   test(`hosted example uses automatic-only handoff and neutral CTA fallback on ${platform}`, async ({ page }) => {
-    const cleanup = await fixture(page, { hostedExample: true, platform, failLaunch: true });
+    const cleanup = await fixture(page, { hostedExample: true, platform, failLaunch: true, blockedStorage: true });
     try {
-      await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(platform === 'ios' ? 1 : 0);
+      await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(1);
       await expect(page.locator('#browser-open')).toHaveCount(0);
       await expect(page.locator('#age-notice')).toHaveCount(0);
       await expect(page.locator('#handoff-panel')).toBeHidden();
-      if (platform === 'ios') {
-        await expect(page).toHaveURL(`${origin}/example/?source=test&_lp_handoff=1#links`);
-        expect(await page.evaluate(() => window.__launches[0])).toMatchObject({ target: page.url(), trigger: 'automatic' });
-        await page.reload();
-        await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
-        expect(await page.evaluate(() => window.__launches.length)).toBe(0);
-      } else {
-        await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'handoff_deferred'))).toBe(true);
-      }
+      await expect(page).toHaveURL(`${origin}/example/?source=test&_lp_handoff=1${platform === 'ios' ? '#links' : ''}`);
+      expect(await page.evaluate(() => window.__launches[0])).toMatchObject({
+        target: page.url(), fallback: page.url(), trigger: 'automatic',
+        strategy: platform === 'ios' ? 'ios-instagram' : 'android-intent',
+      });
+      if (platform === 'android') expect(await page.evaluate(() => window.__launches[0].uri)).not.toContain('S.browser_fallback_url=');
+      await page.reload();
+      await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+      expect(await page.evaluate(() => window.__launches.length)).toBe(0);
       for (const [index, label] of ['Explore my work', 'Read my notes', 'Get in touch'].entries()) {
         const cta = page.getByRole('link', { name: label });
         await expect(cta).toHaveAttribute('href', '/example/more-soon/');
@@ -86,6 +87,7 @@ for (const platform of ['ios', 'android']) {
           target: `${origin}/example/more-soon/`, fallback: `${origin}/example/more-soon/`,
           strategy: platform === 'ios' ? 'ios-instagram' : 'android-intent', trigger: 'cta',
         });
+        if (platform === 'android') expect(await page.evaluate(() => window.__launches.at(-1).uri)).not.toContain('S.browser_fallback_url=');
         await expect(page.locator('#handoff-direct')).toBeVisible();
         await expect(page.locator('#handoff-direct')).toHaveAttribute('href', `${origin}/example/more-soon/`);
         await expect(page.locator('#handoff-retry')).toBeHidden();
@@ -94,9 +96,41 @@ for (const platform of ['ios', 'android']) {
       await page.locator('#handoff-direct').click();
       await expect(page).toHaveURL(`${origin}/example/more-soon/`);
       await expect(page.getByRole('heading', { name: 'More soon' })).toBeVisible();
+      await page.getByRole('link', { name: 'Back to example' }).click();
+      await expect(page).toHaveURL(`${origin}/example/?_lp_handoff=1`);
+      await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+      expect(await page.evaluate(() => window.__launches.length)).toBe(0);
     } finally { await cleanup(); }
   });
 }
+
+test('first Android CTA supersedes a stale arrival pagehide observation while visible', async ({ page }) => {
+  const cleanup = await fixture(page, { hostedExample: true, platform: 'android', diagnostics: true });
+  try {
+    await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(1);
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    expect(await page.evaluate(() => document.visibilityState)).toBe('visible');
+    const before = page.url();
+    await page.getByRole('link', { name: 'Explore my work' }).click();
+    expect(await page.evaluate(() => window.__launches.length)).toBe(2);
+    expect(await page.evaluate(() => window.__launches[1])).toMatchObject({
+      trigger: 'cta', target: `${origin}/example/more-soon/`, strategy: 'android-intent',
+    });
+    await expect(page.getByRole('textbox', { name: 'Browser diagnostic report' })).toHaveValue(/ready build=[a-f0-9]{12}/);
+    await expect(page.getByRole('textbox', { name: 'Browser diagnostic report' })).toHaveValue(/tap cta trusted=true/);
+    await expect(page).toHaveURL(before);
+    await expect(page.locator('#handoff-direct')).toBeVisible();
+    await page.locator('#handoff-direct').click();
+    await expect(page).toHaveURL(`${origin}/example/more-soon/`);
+    await page.getByRole('link', { name: 'Back to example' }).click();
+    await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+    expect(await page.evaluate(() => window.__launches.length)).toBe(0);
+    await expect(page.getByRole('textbox', { name: 'Browser diagnostic report' })).toHaveValue(/handoff_page_hidden/);
+    await page.getByRole('link', { name: 'Explore my work' }).click();
+    expect(await page.evaluate(() => window.__launches.length)).toBe(1);
+    expect(await page.evaluate(() => window.__launches[0].trigger)).toBe('cta');
+  } finally { await cleanup(); }
+});
 
 test('CTA launch error offers the exact direct link and explicit retry/dismiss', async ({ page }) => {
   const cleanup = await fixture(page, { failLaunch: true });

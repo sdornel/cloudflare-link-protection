@@ -8,7 +8,7 @@ npm run build:example
 npm run check:public
 ```
 
-Install development-only browser tooling with `npm ci`, then `npx playwright install chromium webkit` and `npm run test:browser`. Browser tests simulate lifecycle and navigation behavior; actual app-to-browser handoff needs the device checklist in [testing](docs/testing.md).
+Install development-only browser tooling with `npm ci`, then `npx playwright install chromium webkit`. Run `npm run test:handoff` for the first-tap/return regression against unchanged client files with real browser navigation observation, and `npm run test:browser` for the broader Chromium/WebKit suite. CI runs both. Simulated app contexts and lifecycle inputs cannot confirm an OS launch; actual app-to-browser handoff needs the device checklist in [testing](docs/testing.md).
 
 Keep local settings at ignored `config/site.json`. Use neutral synthetic fixtures and screenshots. Never include production configs, destinations, secrets, or generated production output in issues, recordings, public artifacts, or pull requests.
 

@@ -2,6 +2,98 @@
 
 Updated 2026-10-31. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
 
+## Publication checks — 2026-10-31
+
+The complete Node suite passed: 152 tests, no failures or skips. The public-source and Git-index audit passed with private deployment configuration excluded. Earlier focused browser results and broader-suite limitations are recorded below. The operator subsequently confirmed that opening the explicit HTTPS creator address worked.
+
+An attempt to synchronize the current private configuration to the production GitHub build secret was denied by Cloudflare's API permissions. The existing Wrangler login can deploy Workers but did not authorize this build-settings update; the separate local sync credential is not configured. Direct deployments use the updated local configuration. GitHub-triggered deployments still require the production `SITE_CONFIG_JSON` secret to be kept in sync through the dashboard or a token with the documented Workers CI permissions.
+
+## Same-domain HTTPS upgrade deployed — 2026-10-31
+
+The operator reported the configured-domain error on the creator route. Local configuration and the deployed build target the correct HTTPS origin, and the production deployment was current. Reproduced the exact error with an HTTP request against the built manifest; the operator's reported address did not identify its scheme. Live automated requests received the outer Cloudflare challenge, so the original device request's scheme was not confirmed.
+
+Protected GET/HEAD requests now receive a bodyless, non-cacheable 308 when upgrading their scheme yields exactly the configured HTTPS origin. Path/query bytes remain intact; alternate hosts/ports still return 421, and verification POSTs are not redirected. No verification cookies or content are issued on HTTP. All 22 verification tests, the configured build and public-source/Git-index audit passed. Built and deployed the Worker change. The post-deployment live request still encountered the outer challenge; end-to-end device confirmation remains pending.
+
+## Deployment verified — 2026-10-31
+
+At the operator's request, built the current ignored local configuration with `npm run build` and deployed the configured Worker with `npx wrangler deploy`, using `dist`. The custom domain's public example now references client `204d434fcc6f` from the document head. Both the live app and handoff-controller returned HTTP 200 and matched the built files byte for byte. This verifies publication of the Android intent-anchor change; physical Instagram/Android acceptance remains unconfirmed.
+
+## Android CTA default link activation — 2026-10-31
+
+The operator still observed the first-tap failure on Android after deploying the loading fix. A fresh public HTML check confirmed the head module and `blocking="render"` were live; deployment staleness is not assumed. The preceding race fix therefore did not establish resolution of the Instagram behavior.
+
+Android CTA handling now allows the real anchor's default action with a temporarily assigned validated intent URI, instead of canceling the click and calling `location.assign`. The controller restores the original href on the next task/lifecycle cleanup. The event binding retains the original target; duplicate and failed attempts cancel default navigation. iOS, automatic attempts, manual buttons and age-confirmation launches retain their existing paths. No configuration changes or new-tab behavior were introduced.
+
+A new CDP assertion failed against the previous code with `scriptInitiated` and passes with `anchorClick`. All 11 focused cases passed across the ten-case suite plus keyboard activation. Forty focused Node tests passed, including duplicate activation, href restoration and preparation failure. All 14 Chromium enhancement cases passed, covering age prompts, iOS, analytics and fallback UI with their existing simulated OS boundary. The configured build and public-source/Git-index audit passed. The broader suite limitations recorded below remain unresolved. Real Instagram/Android acceptance remains unverified: these results establish a different browser request, not successful OS handoff. No deployment was performed.
+
+## Cold-load first-tap race — 2026-10-31
+
+Checked the public deployed example in Chromium with Android/Instagram context emulation. With scripts initialized, the diagnostic panel appeared and the first trusted tap requested the expected intent, both with and without the arrival guard. Holding the entry-script request reproduced the reported sequence against the live page: the CTA was painted without diagnostics/handlers; its first tap navigated directly to More soon with no intent; Back to example followed by another tap requested an intent. This establishes a loading race, not the cause of every real Instagram failure. No Android device or Instagram app was available for OS-prompt confirmation.
+
+The renderer now puts its deferred module in the document head and uses `blocking="render"` when navigation or age handlers are needed. Supporting browsers initialize before first paint. Analytics-only pages do not block rendering; failed or disabled scripts retain static navigation. This adds first-paint latency while scripts load and is subject to host support/timeouts. Automatic arrival settings, destination URLs and private configuration are unchanged. The standalone snapshot was refreshed and remains script-free.
+
+Two new real-clock paint regressions failed against the previous renderer, then passed with the change. **All 10 focused cases passed** across the nine-case suite and a subsequent disabled-JavaScript case. These include delayed entry/dependency loading, first visible trusted taps, explicit fallback, failed dependencies, and disabled scripting. Focused Node build/routing/verification/app/diagnostic checks also passed.
+
+The broader Chromium/WebKit run reported 26 passed, six intentional skips, and 28 failures: 24 were missing-WebKit startup failures; four were Chromium verification/crawler checks. Their traces show an unrouted request after a synthetic verification 303 redirect, an empty noscript locator, and a fixture cookie absent from its POST (the fixture omits `Path=/`). These failures remain unresolved and the broad suite is not certified passing. Installed the WebKit browser, but Linux dependency installation stopped because sudo requires interactive authentication. No WebKit assertions or physical-device success are claimed. No deployment was performed.
+
+## Verified Playwright handoff run — 2026-10-31
+
+After the session permitted a sandbox exception, Chromium started and the focused suite completed successfully: **6 passed (4.4s)**. Executed `npm run test:handoff -- --reporter=line --output=/tmp/handoff-approved-run`, preserving the operator's earlier reports. The pending-arrival, timed-out-arrival, stale-pagehide and blocked-storage cases all completed the first tap → explicit Continue here → More soon → Back to example → returning tap sequence. Ordinary Android Chrome and unavailable-entry-script cases also passed.
+
+This run verifies the corrected return-navigation wait, real renderer intent requests from unchanged client files, trusted tap activation, exact destinations, explicit fallback, loop prevention and absence of popups. Android context and lifecycle inputs are simulated in desktop Chromium. Physical Instagram/Android prompt and OS handoff verification remain pending; no deployment was performed.
+
+## Playwright return-navigation wait — 2026-10-31
+
+The operator ran the focused suite locally and reported five failures and one pass. Inspected all five saved traces: each terminal error was `page.evaluate: Execution context was destroyed, most likely because of a navigation` in `ready()` immediately after Back to example. The four native cases completed their first-tap intent, destination, activation, fallback and no-popup assertions before failing on return; ordinary Chrome hit the same readiness race. This is a test synchronization defect, not five independently established application failures.
+
+Both return paths now use a shared helper that starts a wait for the exact return URL and DOMContentLoaded alongside the touch tap, then checks readiness in the new document. No assertions were removed or weakened, and production code was not changed for this fix. Syntax, six-test discovery and whitespace checks pass. An initial rerun used separate `/tmp` output to preserve the operator's traces but Chromium failed before assertions with `sandbox_host_linux.cc:41` / `Operation not permitted`. The later approved run above verified all six cases successfully.
+
+## Unmodified-client Playwright handoff suite — 2026-10-31
+
+Added `npm run test:handoff`, with six Chromium cases covering pending/timed-out automatic arrival, stale pagehide, blocked session storage, ordinary Android Chrome and an unavailable entry script. Each native case checks the first trusted tap and follows explicit Continue here → More soon → Back to example → another tap. The suite serves unchanged neutral build files with their CSP, observes real renderer navigation requests through CDP, and checks exact destinations, no silent fallback, no extra launch or popup, and the return guard. It does not replace `defaultLaunch` or `location.assign`. Application timers are controlled; native input remains real and the stale lifecycle event is explicitly simulated.
+
+The focused config needs no preview server and never writes deployment output. CI runs it alongside the existing integration suite and retains neutral failure traces, screenshots, HTML reports and navigation-request JSON. These checks observe requests to launch, not successful OS handoffs or Instagram confirmation dialogs.
+
+Initial validation: test discovery listed all six cases; the existing broader suite separately listed 60 cases without duplicates. Syntax/whitespace checks and the public-source audit passed (86 files; Git index access unavailable). Report destinations are resolved explicitly outside source directories, and each suite has its own result directory. The first command was attempted with `--max-failures=1`; Chromium failed at startup with `sandbox_host_linux.cc:41` / `Operation not permitted` before any test assertions ran. Playwright reported one startup failure and five cases not run. See the later entries above for the operator's run, return-wait correction and successful six-case execution.
+
+## First CTA after a stale arrival lifecycle observation — 2026-10-31
+
+The operator clarified that the first tap automatically navigates to More soon; returning with Back to example and tapping again produces a leave-page prompt. Reproduced a code path with the same visible outcome: an automatic attempt records pagehide, the document is visible without a subsequent pageshow/visibilitychange, and the first CTA returns false from the controller, causing a plain HTTPS navigation. A new app/controller regression failed before the fix. A visible CTA/manual tap now supersedes that stale automatic state as well as a pending attempt. Hidden documents remain unable to supersede it. This reproduction establishes a defect in our state handling, not that this precise event ordering occurred on the phone.
+
+Android intents also no longer include `S.browser_fallback_url` on CTA/manual launches. That extra explicitly allowed the host to load More soon internally when it declined the handoff. The target remains unchanged in the plan, original anchor and user-selected Continue here link. Automatic attempts, the return-link guard and ordinary-browser navigation remain intact; no new-tab behavior was reintroduced.
+
+Added an opt-in, local-only example diagnostic report with build identity, classified context, user activation, lifecycle observations and sanitized handoff events. It carries up to 40 entries through the More soon/Back round trip using session storage, works in memory if storage is unavailable, and is disabled on creator paths. This provides evidence for further device reports instead of treating synthetic intent dispatch as proof of a browser switch.
+
+Validation: **104 focused Node tests pass**, including the failing-before/fixed-after lifecycle regression, original target preservation, explicit fallback use, configuration/build isolation, verification and diagnostic bounds/privacy. The configured build, syntax and whitespace checks pass. The public-source audit passes for 84 files; Git index access remains unavailable. A matching Playwright sequence and diagnostic-report assertions were added and syntax-checked, but Chromium startup failed in this environment. The live example could not be fetched here (terminal DNS failure and browsing-tool access failure). No deployment or physical-device confirmation was performed.
+
+## Android arrival fallback and tab behavior — 2026-10-31
+
+Removed the new-tab experiment from configuration, runtime options and Android intents at the operator's request. Browser tab selection now stays with the receiving browser. The private config was not changed.
+
+The operator reports that the first CTA still opens inside Instagram while a repeat after Back can request Chrome. Automatic Android intents previously supplied the current page as `S.browser_fallback_url`, allowing a blocked arrival attempt to reload it. They now omit that extra on both profile and verification pages; explicit CTA/manual intents retain their exact HTTPS fallback. Chromium documents restrictions on app launches from fallback URLs, making the self-redirect an avoidable source of interference, but its role on the operator's phone is unconfirmed. Automatic attempts, pending-attempt supersession and the neutral return-link guard remain enabled.
+
+Added app/controller regression coverage for a first tap before arrival, during its pending interval, and after its timeout, along with normal Chrome navigation and direct fallback use. These tests exercise the real synchronous location-assignment path with modeled DOM events; they do not establish that Instagram allows the intent. No deployment or physical-device confirmation was performed.
+
+Validation: **99 focused Node tests pass** across the app, strategies/controller, feature validation, builds, profile routing, age acknowledgment and verification. The configured build, syntax checks and whitespace check pass. The public-source audit passes for 82 files, with Git index access still unavailable. The browser fixture was updated and syntax-checked; Playwright was not rerun because of the previously recorded browser/server execution restriction.
+
+## Neutral return-link guard — 2026-10-31
+
+The reported Back action was clarified as the More soon page's Back to example link, which starts a fresh navigation. That link previously dropped the URL attempt marker, leaving suppression dependent on session storage. It now carries `_lp_handoff=1` so returning cannot initiate another arrival attempt even when storage is unavailable or lost. The standalone companion remains script-free and keeps its ordinary file link. This closes a reproducible guard gap; it does not establish which deployment or host-app behavior caused the observed phone prompt.
+
+Validation: **47 focused Node tests pass** across builds, routing, and browser opening. Routing checks verify the generated marked return URL, successful HTTP handling, and guard recognition; the existing controller regression checks marked URLs with unavailable storage. Browser fixtures now cover returning via the actual link with storage blocked, but remain unexecuted due to the previously observed Playwright server restriction. The configured build and standalone snapshot comparisons pass. No live deployment or new physical-device verification was performed.
+
+## Explicit tap during a pending arrival attempt — 2026-10-31
+
+Reproduced a controller race: a CTA for a different destination during the automatic attempt's pending interval returned false, causing the app to navigate directly inside the current browser. A visible-page CTA/manual tap now supersedes that pending automatic attempt synchronously. Old timers/cleanup are discarded, stale callbacks cannot affect the replacement, and duplicate explicit attempts remain suppressed. Back/visibility restoration still shows fallback without initiating another launch. This cannot cancel a prompt already owned by the host app.
+
+Validation: **33 focused tests pass** across handoff strategy/controller, verification-page opening, and age acknowledgment, including the new overlap and hidden-page regressions. Build, syntax, whitespace, and public-source checks pass, with the existing unavailable Git-index audit. An Android report of a prompt appearing after Back remains unconfirmed: deployment version and the exact button/Back sequence are still needed. This fix is not claimed to reproduce or resolve that host-app prompt. No live deployment or physical-device verification was performed.
+
+## Experimental Android arrival attempt — 2026-10-31
+
+Added `browserOpening.androidAutoOpen`, defaulting to false. Together with native mode and `autoOpen`, it permits one Android intent to the guarded current page on arrival, including on an initial branded verification gate. The intent fallback targets that same guarded URL; session/URL loop prevention, ordinary CTA handling, conservative fragment/semicolon handling, and verification POST/error exclusions remain in place. Only the public sample enables the experiment; existing private configurations continue to defer Android entry until a tap. The host app may reject the launch or display a confirmation/error. No physical-device success has been established.
+
+Validation: **135 Node tests pass**, including new option validation/defaults, guarded Android intent fallbacks, one-time gate attempts, and POST/error exclusions. The existing Git-index directory-alias test fails with `spawnSync git EPERM`; one other Git-dependent test skips. Build, syntax, snapshot comparisons, generated sample/private option isolation, whitespace checks, and the public-source audit pass, with Git-index inspection unavailable. Browser regressions were updated for the hosted sample's Android arrival attempt, but Playwright's configured web server could not start. The configured build was restored after that attempt. No live deployment was performed; use the [hosted example checklist](testing.md#hosted-example-handoff-check) after deploying.
+
 ## Hosted example browser handoff — 2026-10-31
 
 The public sample now explicitly enables native automatic iOS same-page handoff with manual browser offers hidden. Its three More soon links inherit the configured opening mode and use the shared tap-triggered iOS/Android strategies. Only the exact built-in relative path can resolve against the current HTTPS origin; absolute destination bytes remain unchanged, and HTTP/offline previews retain ordinary navigation. No private configuration is copied into the demo. Age acknowledgment and branded verification remain disabled in the sample. The standalone snapshot was refreshed and remains script-free.

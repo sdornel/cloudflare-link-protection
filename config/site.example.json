@@ -69,6 +69,7 @@
   "browserOpening": {
     "mode": "native",
     "autoOpen": true,
+    "androidAutoOpen": true,
     "showManual": false,
     "iosStrategy": "instagram",
     "androidPackage": "com.android.chrome",

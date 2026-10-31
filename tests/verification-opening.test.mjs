@@ -4,9 +4,9 @@ import { initializeVerificationOpening, verificationPageURL } from '../src/clien
 import { normalizeFeatures } from '../scripts/features.mjs';
 import { SESSION_GUARD } from '../src/client/browser-opening.js';
 
-function fixture({ userAgent = 'iPhone Instagram', href = 'https://profile.example/sample/?x=a%2Bb#links', state = 'loading', autoOpen = true, showManual = true, returnTo = '/sample/?x=a%2Bb#links' } = {}) {
+function fixture({ userAgent = 'iPhone Instagram', href = 'https://profile.example/sample/?x=a%2Bb#links', state = 'loading', autoOpen = true, androidAutoOpen = false, showManual = true, returnTo = '/sample/?x=a%2Bb#links' } = {}) {
   const elements = new Map(), timers = new Map(), storage = new Map(), frames = [], launches = [], metas = [];
-  const options = normalizeFeatures({ browserOpening: { mode: 'native', autoOpen, showManual }, primaryLink: {}, secondaryLinks: [] }).browserOpening;
+  const options = normalizeFeatures({ browserOpening: { mode: 'native', autoOpen, androidAutoOpen, showManual }, primaryLink: {}, secondaryLinks: [] }).browserOpening;
   for (const id of ['verification-opening-options', 'verification-form', 'browser-open', 'handoff-panel', 'handoff-status', 'handoff-direct', 'handoff-retry', 'handoff-instructions', 'handoff-dismiss']) {
     elements.set(id, Object.assign(new EventTarget(), { hidden: true, textContent: '' }));
   }
@@ -70,6 +70,39 @@ test('failed verification opens the original GET page manually, never the POST e
   assert.equal(f.launches[0], 'x-safari-https://profile.example/sample/?x=a%2Bb&_lp_handoff=1#links');
   assert.doesNotMatch(f.launches[0], /instagram:|_verification\/verify/);
   controller.destroy();
+});
+
+test('opt-in Android gate attempts once without a fallback reload and shares the session guard', () => {
+  for (const userAgent of ['Android Instagram', 'Android [FBAN/FB4A;FBAV/500;]']) {
+    const f = fixture({ userAgent, href: 'https://profile.example/sample/?x=a%2Bb', androidAutoOpen: true, showManual: false });
+    const controller = initializeVerificationOpening(f.win);
+    f.frames[0]();
+    assert.equal(f.launches.length, 1);
+    assert.match(f.launches[0], /^intent:\/\//);
+    assert.ok(f.launches[0].startsWith('intent://profile.example/sample/?x=a%2Bb&_lp_handoff=1#Intent;'));
+    assert.doesNotMatch(f.launches[0], /S.browser_fallback_url=/);
+    assert.equal(controller.active.plan.fallback, 'https://profile.example/sample/?x=a%2Bb&_lp_handoff=1');
+    assert.equal(f.storage.get(SESSION_GUARD), '1');
+    f.tick(); f.frames[0]();
+    assert.equal(f.launches.length, 1);
+    assert.equal(f.elements.get('handoff-panel').hidden, true);
+    const reinitialized = initializeVerificationOpening(f.win);
+    f.frames.at(-1)();
+    assert.equal(f.launches.length, 1);
+    controller.destroy(); reinitialized.destroy();
+  }
+});
+
+test('Android experiment does not run on POST/error pages, ordinary browsers or when automatic mode is off', () => {
+  for (const override of [{ autoOpen: false }, { state: 'error' }, { state: 'verifying' },
+    { href: 'https://profile.example/_verification/verify' },
+    { href: 'https://profile.example/sample/?_lp_handoff=1' }, { userAgent: 'Android Chrome' }]) {
+    const f = fixture({ userAgent: 'Android Instagram', href: 'https://profile.example/sample/', androidAutoOpen: true, ...override });
+    const controller = initializeVerificationOpening(f.win);
+    f.frames.forEach(frame => frame());
+    assert.equal(f.launches.length, 0);
+    controller?.destroy();
+  }
 });
 
 test('return URL validation rejects external and internal verification targets', () => {

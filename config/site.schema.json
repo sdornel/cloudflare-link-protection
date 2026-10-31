@@ -291,6 +291,11 @@
           "type": "boolean",
           "default": false
         },
+        "androidAutoOpen": {
+          "type": "boolean",
+          "default": false,
+          "description": "Experimental one-time Android intent on arrival; also requires native mode and autoOpen. The host app may block it or prompt."
+        },
         "showManual": {
           "type": "boolean",
           "default": true

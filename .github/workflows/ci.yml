@@ -30,6 +30,8 @@ jobs:
         env:
           WRANGLER_SEND_METRICS: "false"
       - run: npx playwright install --with-deps chromium webkit
+      - name: Check native handoff requests in Chromium
+        run: npm run test:handoff
       - run: npm run test:browser
       - run: npm run screenshots
       - run: npm run check:performance
@@ -39,5 +41,6 @@ jobs:
           name: neutral-browser-evidence
           path: |
             test-results/
+            playwright-report/
             docs/images/*.png
             browser-output/performance.json

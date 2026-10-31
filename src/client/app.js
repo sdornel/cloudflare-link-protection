@@ -3,6 +3,7 @@ import { guardedPageURL, isPlainActivation, openingPlan } from './browser-openin
 import { createHandoffController } from './handoff-controller.js';
 import { createAnalytics } from './analytics.js';
 import { createAgeAcknowledgment } from './age-acknowledgment.js';
+import { initializeHandoffDiagnostics } from './handoff-diagnostics.js';
 
 export function initialize(win = window) {
   const doc = win.document;
@@ -10,6 +11,7 @@ export function initialize(win = window) {
   if (!data) return;
   const options = JSON.parse(data.textContent);
   const context = browserContext(win.navigator);
+  try { initializeHandoffDiagnostics(win, context); } catch { /* Diagnostics are optional. */ }
   let analytics = { track() {}, setConsent() {}, permitted: false };
   try { analytics = createAnalytics(win, options.analytics); } catch {}
   const track = (name, fields = {}) => { try { analytics.track(name, { platform: context.platform, ...fields }); } catch {} };
@@ -40,11 +42,11 @@ export function initialize(win = window) {
     track('browser_strategy', { link_id: id, strategy: plan.strategy, reason: plan.reason, trigger });
     return controller.attempt(plan, { id, trigger });
   };
-  function activate(anchor, event) {
+  function activate(anchor, event, destination) {
     if (!isPlainActivation(event, anchor)) return;
     const id = anchor.dataset.linkId;
     const mode = anchor.dataset.openingMode === 'inherit' ? options.browserOpening.mode : anchor.dataset.openingMode;
-    const plan = planFor(anchor.getAttribute('href'), mode);
+    const plan = planFor(destination, mode);
     const resume = () => {
       track('outbound_click', { link_id: id });
       if (!navigate(plan, id, 'cta')) win.location.assign(anchor.href);
@@ -53,12 +55,23 @@ export function initialize(win = window) {
     track('outbound_click', { link_id: id });
     track('browser_strategy', { link_id: id, strategy: plan.strategy, reason: plan.reason, trigger: 'cta' });
     if (plan.strategy === 'direct') return;
+    if (plan.strategy === 'android-intent') {
+      const previous = controller.active;
+      const handled = controller.attempt(plan, { id, trigger: 'cta', anchor });
+      // Only a newly prepared anchor attempt can use this click's default
+      // action. Suppressed duplicates or launch errors must not follow a
+      // leftover intent or silently fall through to the HTTPS destination.
+      if (handled && (controller.active === previous || controller.active.state !== 'attempted'
+        || anchor.getAttribute('href') !== plan.uri)) event.preventDefault();
+      return;
+    }
     event.preventDefault();
     if (!controller.attempt(plan, { id, trigger: 'cta' })) win.location.assign(anchor.href);
   }
   for (const anchor of doc.querySelectorAll('a[data-opening-mode]')) {
+    const destination = anchor.getAttribute('href');
     anchor.addEventListener('click', (event) => {
-      try { activate(anchor, event); } catch {
+      try { activate(anchor, event, destination); } catch {
         // If interception already happened, restore an ordinary navigation.
         if (event.defaultPrevented) win.location.assign(anchor.href);
       }
@@ -108,7 +121,7 @@ export function initialize(win = window) {
   visit(); doc.addEventListener('visibilitychange', visit); doc.addEventListener('prerenderingchange', visit);
   automaticPage = (userActivation = false) => {
     if (options.browserOpening.mode !== 'native' || !options.browserOpening.autoOpen || !context.eligible || !age.allows()) return;
-    if (context.platform === 'android' && !userActivation) { track('handoff_deferred', { reason: 'gesture_required', trigger: 'automatic' }); return; }
+    if (context.platform === 'android' && !userActivation && !options.browserOpening.androidAutoOpen) { track('handoff_deferred', { reason: 'gesture_required', trigger: 'automatic' }); return; }
     const target = controller.claimAutomatic();
     if (target) navigate(planFor(target, 'native', !userActivation), 'page', userActivation ? 'manual' : 'automatic');
   };

@@ -15,6 +15,8 @@ test('legacy features default to direct and public options use an explicit allow
   const value = normalizeFeatures(config);
   assert.equal(value.browserOpening.mode, 'direct'); assert.equal(value.ageAcknowledgment.enabled, false);
   assert.equal(value.browserOpening.autoOpen, false);
+  assert.equal(value.browserOpening.androidAutoOpen, false);
+  assert.equal(publicOptions(value).browserOpening.androidAutoOpen, false);
   assert.equal(value.browserOpening.showManual, true);
   assert.deepEqual(value.statusBadge, { enabled: false, label: 'Online' });
   assert.ok(!Object.hasOwn(publicOptions(value), 'statusBadge'));
@@ -31,6 +33,8 @@ test('feature validation rejects invalid modes, ranges, IDs, disabled-link strat
     c => c.schemaVersion = 3,
     c => c.browserOpening = { mode: 'bouncy' },
     c => c.browserOpening = { autoOpen: 'yes' },
+    c => c.browserOpening = { androidAutoOpen: 'yes' },
+    c => c.browserOpening = { androidAutoOpen: null },
     c => c.browserOpening = { fallbackDelayMs: 0 },
     c => c.browserOpening = { fallbackDelayMs: Infinity },
     c => c.browserOpening = { androidPackage: 'com.test;evil=yes' },
@@ -72,6 +76,15 @@ test('browser configuration accepts explicit iOS Chrome and Android default reso
   validateConfig(config);
   assert.equal(publicOptions(normalizeFeatures(config)).browserOpening.androidPackage, 'default');
   assert.equal(publicOptions(normalizeFeatures(config)).browserOpening.iosStrategy, 'chrome');
+});
+
+test('Android arrival requests are explicit booleans in public runtime options', () => {
+  const config = fresh();
+  config.browserOpening = { mode: 'native', autoOpen: true, androidAutoOpen: true };
+  validateConfig(config);
+  assert.equal(publicOptions(normalizeFeatures(config)).browserOpening.androidAutoOpen, true);
+  delete config.browserOpening.androidAutoOpen;
+  assert.equal(publicOptions(normalizeFeatures(config)).browserOpening.androidAutoOpen, false);
 });
 
 test('analytics events only contain known bounded fields, never URLs or success claims', () => {

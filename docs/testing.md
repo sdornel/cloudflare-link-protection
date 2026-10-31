@@ -43,6 +43,26 @@ On a real device, check:
 
 ## Browser integration
 
+For the Android first-tap regression, run the focused suite:
+
+```sh
+npm ci
+npx playwright install chromium
+npm run test:handoff
+```
+
+On Linux, `npx playwright install --with-deps chromium` also installs the required system libraries. `npm run test:handoff -- --list` lists the cases without starting a browser. This command builds only the neutral demo into a temporary directory and serves its unchanged files and CSP through HTTPS test routing; it does not rebuild `dist`, read private configuration, contact the live domain or deploy anything.
+
+The suite uses Android touch emulation and real trusted taps. CDP observes actual renderer navigation requests from the production launch code; it does not replace the launch function or infer a request from our analytics. Android CTA checks require the `anchorClick` reason, rejecting a scripted redirect even if its intent URI is correct. They cover first tap while arrival is pending, after its timeout, after a simulated stale pagehide, and with session storage blocked. Each case follows Continue here → More soon → Back to example → first returning tap. Assertions reject silent in-app navigation, extra native attempts and popups, and check the exact destination and restoration of the original href. Keyboard activation exercises the same default link action. Ordinary Chrome and unavailable-entry-script cases retain direct navigation.
+
+Cold-load cases start before initialization and hold either the entry script or a dependency. They use the real browser clock and Paint Timing entries to verify that an unwired CTA is not painted while loading, then test the first visible tap without waiting for an application readiness event. Separate checks verify that a failed dependency and disabled JavaScript still paint a usable static page. Lifecycle tests use controlled timers; paint tests must not use Playwright's fake Performance implementation.
+
+These are browser integration tests, not an Android/Instagram OS test: a recorded `intent:` request does not establish that Chrome opened or a leave-page prompt appeared. The synthetic pagehide is a controlled regression input, not a device observation. [Playwright's Android support](https://playwright.dev/docs/api/class-android) requires a connected device/emulator and ADB; desktop mobile emulation does not provide that environment. Follow the real-device checklist for prompt behavior.
+
+CI runs the focused suite on pushes and pull requests. Failure traces/screenshots and `navigation-requests.json` are saved under ignored `test-results/handoff/`, with the HTML report under `playwright-report/handoff/`; the browser job uploads those neutral artifacts. Open a local report with `npx playwright show-report playwright-report/handoff`. A browser startup failure is a failed run, never passing compatibility evidence. Restricted environments can fail with `sandbox_host_linux.cc` / `Operation not permitted` before any assertions execute; use a normal local terminal or CI in that case.
+
+The broader cross-browser suite is separate:
+
 ```sh
 npm ci
 npx playwright install chromium webkit
@@ -63,15 +83,18 @@ This builds and serves the neutral sample in an isolated temporary directory, th
 
 ## Hosted example handoff check
 
-Deploy the updated build, then use `/example/` on your own HTTPS origin. Its sample settings enable native mode and automatic opening while hiding the manual browser button. All destinations remain the neutral More soon page; no private configuration update is needed for this demo change. Age acknowledgment and the branded gate stay disabled, so this check does not exercise those features. Domain-level Cloudflare challenges may still precede the page.
+Deploy the updated build, then use `/example/` on your own HTTPS origin. Its sample settings enable native mode, automatic opening, and the separate `androidAutoOpen` experiment while hiding the manual browser button. All destinations remain the neutral More soon page; no private configuration update is needed for this demo change. Age acknowledgment and the branded gate stay disabled, so this check does not exercise those features. Domain-level Cloudflare challenges may still precede the page.
 
 1. Start a fresh Instagram/Facebook in-app browsing session at `/example/` without a `_lp_handoff` marker. An earlier visit in the same session can suppress another automatic attempt by design.
 2. On iOS, observe whether the same example page opens externally, prompts, or stays in the app. Refreshing or returning must not create repeated automatic launches. Record the actual browser; an attempt alone is not proof of success.
-3. On Android, expect no launch on arrival. Tap a sample button: the app attempts to open the same-origin `/example/more-soon/` in Chrome. If still inside Instagram on iOS, a button tap also attempts native handoff.
-4. If a button handoff fails, confirm that Continue here reaches More soon. There should be no Open in Browser button or browser retry/instruction offer. More soon must not attempt another handoff.
+3. On Android, use a URL without a fragment or literal semicolon, which the intent strategy intentionally declines. Observe the single arrival attempt: Chrome may open the same example page, the app may show a confirmation/error, or it may remain inside the app. The automatic intent must not include a self-redirect fallback. Confirm there is no repeat on refresh or return. If still inside the app, tap Explore my work once without visiting More soon and returning first: the app should issue one intent for the same-origin `/example/more-soon/` during that tap. Test once immediately after arrival and once after the arrival timeout in a fresh session. Record whether Chrome actually opens, a confirmation appears, or More soon loads inside Instagram; these are distinct outcomes. The receiving browser chooses the tab. With `androidAutoOpen: false`, expect no attempt before a tap.
+4. A native attempt must not include `S.browser_fallback_url` or navigate to More soon through a controller fallback. If it is unconfirmed, Continue here should become available and reach More soon when tapped. There should be no Open in Browser button or browser retry/instruction offer. More soon must not attempt another handoff.
+   Use its Back to example link, including with session storage blocked: it should return to `/example/?_lp_handoff=1` and initiate no new browser-opening attempt.
 5. Check all three links in normal Safari/Chrome and with JavaScript disabled. They should navigate directly to More soon. HTTP localhost and offline snapshots cannot test native opening.
 
-Automated checks cover HTTPS resolution of the exact built-in path, unchanged absolute URLs, rejected alternative relative URLs, sample feature flags, and conservative omitted defaults. Browser fixtures exercise the hosted sample's real app code with simulated iOS/Android contexts and only the OS launch boundary replaced; physical devices remain necessary for compatibility evidence.
+For a repeatable phone trace, use `/example/?handoff_debug=1` before the first tap. The local report below the buttons records build/version and handoff/lifecycle events and survives the More soon/Back link when session storage works. Copy it after reproducing the problem. A `handoff_attempt` records our attempt, not a confirmed external launch. Missing diagnostics entirely can indicate an old deployment or that JavaScript has not initialized. Clear the report with `/example/?handoff_debug=0` before another independent run.
+
+Automated checks cover HTTPS resolution of the exact built-in path, unchanged absolute URLs, rejected alternative relative URLs, sample feature flags, and conservative omitted defaults. `tests/app-opening.test.mjs` exercises the real app/controller with modeled DOM events and timers: the first CTA issues its intent before, during, and after the arrival attempt, including a stale pagehide observation on a visible document, and its direct fallback remains usable. It does not simulate Android's navigation policies. Browser fixtures exercise the hosted sample's real app code with simulated iOS/Android contexts and only the OS launch boundary replaced; physical devices remain necessary for compatibility evidence.
 
 ## Real-device checklist
 

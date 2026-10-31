@@ -60,8 +60,8 @@ export function initializeVerificationOpening(win = window) {
   doc.getElementById('handoff-dismiss').addEventListener('click', () => controller.dismiss());
   win.requestAnimationFrame(() => {
     // A pending/failed POST must never be reissued in another browser. Android
-    // launches require a tap; all-scope age acknowledgment also defers automatic entry.
-    if (!options.autoOpen || context.platform === 'android' || form.dataset.state !== 'loading' || win.location.pathname === '/_verification/verify') return;
+    // entry is opt-in; all-scope age acknowledgment also defers automatic entry.
+    if (!options.autoOpen || (context.platform === 'android' && !options.androidAutoOpen) || form.dataset.state !== 'loading' || win.location.pathname === '/_verification/verify') return;
     const target = controller.claimAutomatic();
     if (target) open(target, true);
   });

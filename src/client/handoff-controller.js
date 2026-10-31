@@ -12,6 +12,20 @@ export function createHandoffController({ window: win, document: doc, delay = 18
     active.cleanup = null;
   };
   const defaultLaunch = (plan, trigger) => {
+    if (plan.strategy === 'android-intent' && trigger === 'cta' && active.anchor) {
+      // Let this real anchor's default activation request the intent. A
+      // location.assign redirect is a different navigation kind to the host.
+      const anchor = active.anchor;
+      const href = anchor.getAttribute('href');
+      const restore = () => { if (anchor.getAttribute('href') === plan.uri) anchor.setAttribute('href', href); };
+      let timer;
+      try {
+        anchor.setAttribute('href', plan.uri);
+        // Microtasks run before link activation; restore in the next task.
+        timer = win.setTimeout(restore, 0);
+      } catch (error) { restore(); throw error; }
+      return () => { win.clearTimeout(timer); restore(); };
+    }
     if (trigger === 'automatic' && plan.strategy === 'ios-instagram') {
       const refresh = doc.createElement('meta');
       refresh.httpEquiv = 'refresh';
@@ -30,12 +44,21 @@ export function createHandoffController({ window: win, document: doc, delay = 18
     emit('fallback_shown', { ...detail(active), reason });
     show('fallback_visible', active);
   };
-  function attempt(plan, { id = 'page', trigger = 'manual' } = {}) {
+  function attempt(plan, { id = 'page', trigger = 'manual', anchor = null } = {}) {
     if (plan.strategy === 'direct' || !plan.uri) return false;
-    if (active && ['attempted', 'page_hidden_observed'].includes(active.state)) return active.plan.target === plan.target;
+    if (active && ['attempted', 'page_hidden_observed'].includes(active.state)) {
+      // A real CTA/manual action must get its own gesture-triggered attempt,
+      // even while an automatic arrival attempt is waiting for confirmation.
+      // Current visibility wins over a stale pagehide observation. Waiting for
+      // pageshow here could turn the first visible CTA into direct navigation.
+      // Keep suppressing duplicate explicit attempts and hidden-page launches.
+      const replacesAutomatic = active.trigger === 'automatic'
+        && ['cta', 'manual'].includes(trigger) && doc.visibilityState === 'visible';
+      if (!replacesAutomatic) return active.plan.target === plan.target;
+    }
     clear();
     autoClaimed = true;
-    active = { plan, id, trigger, state: 'attempted', cleanup: null, timer: null };
+    active = { plan, id, trigger, anchor, state: 'attempted', cleanup: null, timer: null };
     emit('handoff_attempt', detail(active));
     show('attempted', active);
     const current = active;

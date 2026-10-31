@@ -246,7 +246,41 @@ test('missing keys, weak signing secrets, and official test credentials fail clo
     f.env[key] = before;
   }
   assert.equal((await f.worker.fetch(new Request('https://alternate.example' + profilePath), f.env)).status, 421);
-  assert.equal((await f.worker.fetch(new Request('http://profile.example' + profilePath), f.env)).status, 421);
+  assert.equal((await f.worker.fetch(new Request('http://profile.example' + profilePath), f.env)).status, 308);
+});
+
+test('HTTP profile visits upgrade to the exact configured HTTPS origin before verification', async t => {
+  const f = await fixture(t);
+  for (const method of ['GET', 'HEAD']) {
+    for (const suffix of ['', '/', '/index.html']) {
+      const target = `${profilePath}${suffix}?a=%20&a=2&plus=+&next=https%3A%2F%2Fexternal.example`;
+      const response = await f.worker.fetch(new Request('http://profile.example' + target, { method }), f.env);
+      assert.equal(response.status, 308);
+      assert.equal(response.headers.get('Location'), origin + target);
+      assert.equal(response.headers.get('Set-Cookie'), null);
+      assert.equal(response.headers.get('Cache-Control'), 'no-store');
+      assert.equal(await response.text(), '');
+      if (method === 'GET') {
+        const secure = await f.worker.fetch(new Request(response.headers.get('Location')), f.env);
+        assert.equal(secure.status, 200);
+        assert.match(await secure.text(), /id="verification-form"/);
+      }
+    }
+  }
+  assert.equal(f.state.verificationCalls.length, 0);
+  for (const alternate of ['http://alternate.example', 'https://alternate.example', 'http://profile.example:8080']) {
+    const response = await f.worker.fetch(new Request(alternate + profilePath, {
+      headers: { Host: 'profile.example', 'X-Forwarded-Host': 'profile.example', 'X-Forwarded-Proto': 'https' },
+    }), f.env);
+    assert.equal(response.status, 421);
+    assert.equal(response.headers.get('Location'), null);
+  }
+  const post = await f.worker.fetch(new Request('http://profile.example/_verification/verify', {
+    method: 'POST', headers: { Origin: origin }, body: 'token=fixture&returnTo=' + profilePath,
+  }), f.env);
+  assert.equal(post.status, 403);
+  assert.equal(post.headers.get('Location'), null);
+  assert.equal(f.state.verificationCalls.length, 0);
 });
 
 test('sessions reject tampering, expiry, duplicate cookies, and signing-key rotation', async t => {

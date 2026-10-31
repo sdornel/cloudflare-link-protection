@@ -20,7 +20,7 @@ The example keeps its visitor-facing copy generic and its footer minimal. Deploy
 
 All three example buttons open a local **More soon** page with a link back. The standalone `example.html` shares the production renderer and embeds its stylesheet; keep its generated `more-soon.html` companion beside it for offline navigation. Refresh both with `npm run example:refresh`; normal builds leave them untouched. The browser captures below use the served neutral build. The [Cloudflare guide](docs/cloudflare.md#public-demo-project) explains how to deploy your own Worker.
 
-On HTTPS, the hosted `/example/` also exercises automatic iOS browser handoff and tap-triggered iOS/Android handoff to **More soon**, with direct fallbacks and no manual browser-opening offer. Its content stays neutral; age acknowledgment and branded verification are disabled. HTTP localhost and the script-free standalone preview retain ordinary navigation. Use the [device checklist](docs/testing.md#hosted-example-handoff-check) to test the hosted flow.
+On HTTPS, the hosted `/example/` also exercises one experimental automatic browser handoff on iOS or Android, plus tap-triggered handoff to **More soon**, with direct fallbacks and no manual browser-opening offer. The host app may block or prompt for the attempt. Its content stays neutral; age acknowledgment and branded verification are disabled. HTTP localhost and the script-free standalone preview retain ordinary navigation. Use the [device checklist](docs/testing.md#hosted-example-handoff-check) to test the hosted flow.
 
 ## Screenshots
 
@@ -38,7 +38,7 @@ These captures predate the generic bio and the removal of the demo notice and pu
 - Content and complete page styling in JSON, with per-deployment theme overrides.
 - A configurable platform landing at `/`, the neutral demo at `/example/`, and an optional creator path such as `/sample-creator`, on the same Worker.
 - Native iOS scheme and Android intent strategies for Instagram/Facebook, manual Open in Browser on the profile and branded verification page, direct fallbacks, and loop guards.
-- Optional experimental automatic iOS page handoff, enabled in the hosted sample and off when the option is omitted; Android defers to a tap.
+- Optional experimental automatic page handoff; Android has a separate `androidAutoOpen` opt-in. Both flags are enabled in the hosted sample and off when omitted.
 - Optional 18+ acknowledgment for all links or a confirmation dialog on the primary CTA, remembered for the tab session. Copy and styling are configurable. Cloudflare visit/performance analytics and optional GA4 interaction events.
 - Optional branded Turnstile verification, enforced by the Worker with signed sessions; configuration controls copy and styling. Disabled until configured. [Activation guide](docs/verification.md).
 - Safe config serialization, security headers, selective image copying, and public-source checks.
@@ -125,11 +125,12 @@ For browser integration tests only:
 ```sh
 npm ci
 npx playwright install chromium webkit
+npm run test:handoff
 npm run test:browser
 npm run screenshots
 npm run check:performance
 ```
 
-The [testing guide](docs/testing.md) separates automated evidence from real-device checks. Chromium/WebKit tests, neutral screenshots, local performance measurements, and initial live-demo checks are recorded in the [status guide](docs/implementation-status.md). Physical Instagram handoff and custom-domain checks remain pending. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [MIT license](LICENSE).
+`test:handoff` runs six focused Chromium cases against unchanged demo assets, observing real navigation requests for first taps and the More soon/Back round trip. It does not confirm an Android app switch or Instagram prompt. The [testing guide](docs/testing.md) separates automated evidence from real-device checks. Chromium/WebKit tests, neutral screenshots, local performance measurements, and initial live-demo checks are recorded in the [status guide](docs/implementation-status.md). Physical Instagram handoff and custom-domain checks remain pending. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [MIT license](LICENSE).
 
 Dedicated Bouncy integration is deferred. The [specification](SPEC.md) and [implementation status](docs/implementation-status.md) track the current direct/native scope and remaining release checks.

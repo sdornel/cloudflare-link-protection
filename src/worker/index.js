@@ -196,6 +196,15 @@ export function createWorker({ fetchVerification = (...args) => fetch(...args), 
         if (!['GET', 'HEAD'].includes(request.method)) return plain('Method not allowed.', 405, request.method);
         const protectedDocument = !internal && protectedPath(url.pathname, config);
         if (protectedDocument) {
+          if (url.protocol === 'http:') {
+            const secureURL = new URL(url);
+            secureURL.protocol = 'https:';
+            // Upgrade only this configured origin. Do not redirect aliases,
+            // trust forwarded headers, or issue a cookie over plain HTTP.
+            if (secureURL.origin === config.origin) return new Response(null, {
+              status: 308, headers: { ...plainHeaders, Location: secureURL.href },
+            });
+          }
           if (url.protocol !== 'https:' || url.origin !== config.origin) return plain('This page is available on its configured HTTPS domain.', 421, request.method);
           if (!ready(env) || !await signed(request, env, config, 'session')) {
             const target = returnPath(url.pathname + url.search, config, url.origin);

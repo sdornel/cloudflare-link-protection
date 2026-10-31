@@ -18,7 +18,7 @@ for (const javaScriptEnabled of [true, false]) {
         await expect(page).toHaveURL('http://127.0.0.1:4173/example/more-soon/');
         await expect(page.getByRole('heading')).toHaveText('More soon');
         await page.getByRole('link', { name: 'Back to example' }).click();
-        await expect(page).toHaveURL('http://127.0.0.1:4173/example/');
+        await expect(page).toHaveURL('http://127.0.0.1:4173/example/?_lp_handoff=1');
       }
     } finally { await context.close(); }
   });

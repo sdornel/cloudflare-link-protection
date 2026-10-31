@@ -23,13 +23,13 @@ export function normalizeFeatures(config) {
   const input = config.browserOpening ?? {};
   if (input.labels !== undefined && !object(input.labels)) throw new Error('browserOpening.labels must be an object.');
   const browserOpening = {
-    mode: 'direct', autoOpen: false, showManual: true, iosStrategy: 'instagram',
+    mode: 'direct', autoOpen: false, androidAutoOpen: false, showManual: true, iosStrategy: 'instagram',
     androidPackage: 'com.android.chrome', fallbackDelayMs: 1800, ...input,
     labels: { ...labels, ...input.labels },
   };
   choice(browserOpening.mode, ['native', 'direct'], 'browserOpening.mode');
   choice(browserOpening.iosStrategy, ['instagram', 'safari', 'chrome'], 'browserOpening.iosStrategy');
-  for (const field of ['autoOpen', 'showManual']) boolean(browserOpening[field], `browserOpening.${field}`);
+  for (const field of ['autoOpen', 'androidAutoOpen', 'showManual']) boolean(browserOpening[field], `browserOpening.${field}`);
   if (!Number.isInteger(browserOpening.fallbackDelayMs) || browserOpening.fallbackDelayMs < 800 || browserOpening.fallbackDelayMs > 5000) throw new Error('browserOpening.fallbackDelayMs must be an integer from 800 to 5000.');
   if (typeof browserOpening.androidPackage !== 'string' || (browserOpening.androidPackage !== 'default' && !/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(browserOpening.androidPackage))) throw new Error('browserOpening.androidPackage must be default or an Android package name.');
   for (const [key, text] of Object.entries(browserOpening.labels)) {
@@ -65,7 +65,7 @@ export function normalizeFeatures(config) {
 export function publicOptions(config) {
   const b = config.browserOpening, a = config.ageAcknowledgment;
   return {
-    browserOpening: { mode: b.mode, autoOpen: b.autoOpen, showManual: b.showManual, iosStrategy: b.iosStrategy, androidPackage: b.androidPackage, fallbackDelayMs: b.fallbackDelayMs, labels: Object.fromEntries(Object.keys(labels).map((key) => [key, b.labels[key]])) },
+    browserOpening: { mode: b.mode, autoOpen: b.autoOpen, androidAutoOpen: b.androidAutoOpen, showManual: b.showManual, iosStrategy: b.iosStrategy, androidPackage: b.androidPackage, fallbackDelayMs: b.fallbackDelayMs, labels: Object.fromEntries(Object.keys(labels).map((key) => [key, b.labels[key]])) },
     ageAcknowledgment: { enabled: a.enabled, remember: a.remember, scope: a.scope, primaryLinkId: config.primaryLink.id },
     analytics: { ga4MeasurementId: config.analytics.ga4MeasurementId, ga4Consent: config.analytics.ga4Consent, debug: config.analytics.debug },
   };

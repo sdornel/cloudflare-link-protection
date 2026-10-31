@@ -54,6 +54,7 @@ test('explicit example build ignores private inputs and emits direct functional 
   const options = JSON.parse(html.match(/<script id="profile-options" type="application\/json">([^<]+)<\/script>/)[1]);
   assert.equal(options.browserOpening.mode, 'native');
   assert.equal(options.browserOpening.autoOpen, true);
+  assert.equal(options.browserOpening.androidAutoOpen, true);
   assert.equal(options.browserOpening.showManual, false);
   assert.equal(options.ageAcknowledgment.enabled, false);
   assert.doesNotMatch(html, /id="browser-open"|id="age-notice"/);
@@ -334,6 +335,7 @@ test('native build ships versioned modules and only safe allowlisted public opti
   config.analytics.ga4MeasurementId = 'G-TEST1234';
   const { html, outDir } = await built(t, { config });
   assert.ok(html.includes('type="module"'));
+  assert.match(html.split('</head>')[0], /<script type="module"[^>]+blocking="render"/);
   assert.ok(html.includes('id="age-notice"'));
   const runtime = html.match(/id="profile-options" type="application\/json">(.*?)<\/script>/s)[1];
   assert.doesNotMatch(runtime, /RUNTIME_PRIVATE_MARKER|<script>|<\/script>/);
@@ -344,6 +346,21 @@ test('native build ships versioned modules and only safe allowlisted public opti
   assert.match(headers, /www\.googletagmanager\.com/);
   assert.doesNotMatch(headers, /unsafe-inline|unsafe-eval/);
   assert.ok(!(await readdir(outDir)).includes('site.json'));
+});
+
+test('only navigation and age enhancements block first paint', async (t) => {
+  const analyticsOnly = fresh();
+  analyticsOnly.analytics.debug = true;
+  const analytics = await built(t, { config: analyticsOnly });
+  assert.match(analytics.html, /type="module"/);
+  assert.doesNotMatch(analytics.html, /blocking="render"/);
+  for (const feature of ['link', 'age']) {
+    const config = fresh();
+    if (feature === 'link') config.primaryLink.openingMode = 'native';
+    else config.ageAcknowledgment = { enabled: true, scope: 'primary' };
+    const { html } = await built(t, { config });
+    assert.match(html.split('</head>')[0], /<script type="module"[^>]+blocking="render"/);
+  }
 });
 
 test('two deployments built from identical source isolate branding and runtime settings', async (t) => {

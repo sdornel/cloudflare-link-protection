@@ -114,7 +114,10 @@ test('preview routes slashless entry with intact queries, serves the page and as
     const destination = await request(handler, href);
     assert.equal(destination.statusCode, 200);
     assert.match(destination.body, /<h1>More soon<\/h1>/);
-    assert.match(destination.body, /href="\/example\/"/);
+    assert.match(destination.body, /href="\/example\/\?_lp_handoff=1"/);
+    const returnURL = new URL(destination.body.match(/href="([^"]+)">Back to example/)[1], 'https://profile.example');
+    assert.equal(guardedPageURL(returnURL.href).marked, true);
+    assert.equal((await request(handler, returnURL.pathname + returnURL.search)).statusCode, 200);
     assert.doesNotMatch(destination.body, /<script|SYNTHETIC_CREATOR|style=/);
     const stylesheet = destination.body.match(/rel="stylesheet" href="([^"]+)"/)[1];
     assert.equal((await request(handler, stylesheet)).statusCode, 200);
@@ -165,7 +168,8 @@ test('native page handoff preserves the profile path and query and retains its l
   const ios = openingPlan(guarded.url, { mode: 'native' }, { eligible: true, platform: 'ios' });
   assert.equal(decodeURIComponent(ios.uri.split('?url=')[1]), guarded.url);
   const android = openingPlan(guarded.url, { mode: 'native' }, { eligible: true, platform: 'android' });
-  assert.equal(decodeURIComponent(android.uri.match(/S.browser_fallback_url=([^;]+);end$/)[1]), guarded.url);
+  assert.equal(android.fallback, guarded.url);
+  assert.doesNotMatch(android.uri, /S.browser_fallback_url=/);
   assert.equal(guardedPageURL(guarded.url).marked, true);
 });
 

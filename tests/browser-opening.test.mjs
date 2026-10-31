@@ -36,7 +36,7 @@ test('neutral destination uses the current HTTPS origin for native handoff and f
       assert.equal(decodeURIComponent(plan.uri.split('?url=')[1]), expected);
     } else {
       assert.equal(plan.strategy, 'android-intent');
-      assert.equal(decodeURIComponent(plan.uri.match(/S.browser_fallback_url=([^;]+);end$/)[1]), expected);
+      assert.doesNotMatch(plan.uri, /S.browser_fallback_url=/);
     }
   }
   assert.equal(openingPlan(PLACEHOLDER_URL, { mode: 'native' }, android, { pageURL, automatic: true }).reason, 'gesture_required');
@@ -68,15 +68,16 @@ test('Facebook detection enables mobile assistance without invoking Instagram fr
   const plan = openingPlan('https://example.com/?x=a%2Bb', { mode: 'native', androidPackage: 'default' }, facebookAndroid);
   assert.equal(plan.strategy, 'android-intent');
   assert.doesNotMatch(plan.uri, /;package=/);
-  assert.match(plan.uri, /S.browser_fallback_url=https%3A%2F%2Fexample.com%2F%3Fx%3Da%252Bb/);
+  assert.equal(plan.fallback, 'https://example.com/?x=a%2Bb');
+  assert.doesNotMatch(plan.uri, /S.browser_fallback_url=/);
   assert.equal(openingPlan(target, { mode: 'native' }, facebookAndroid, { automatic: true }).reason, 'gesture_required');
 });
 
-test('Android intent carries original target and encoded direct fallback, and declines ambiguous URLs', () => {
+test('Android intent preserves its target but leaves direct fallback to an explicit page link', () => {
   const target = 'https://example.com/path?a=1&a=2&space=%20&plus=+';
   const plan = openingPlan(target, { mode: 'native' }, android);
-  assert.ok(plan.uri.startsWith(`intent://${target.slice(8)}#Intent;scheme=https;`));
-  assert.equal(decodeURIComponent(plan.uri.match(/S.browser_fallback_url=([^;]+);end$/)[1]), target);
+  assert.equal(plan.uri, `intent://${target.slice(8)}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=com.android.chrome;end`);
+  assert.equal(plan.fallback, target);
   for (const suffix of ['#section', '#Intent;package=evil;end', '?x=one;two']) {
     assert.equal(openingPlan(target + suffix, { mode: 'native' }, android).strategy, 'direct');
   }
@@ -90,6 +91,28 @@ test('same-page guard retains original query serialization and fragment without 
   assert.deepEqual(guardedPageURL(input), { marked: false, url: 'https://example.com/?a=%20&a=2&plus=+&_lp_handoff=1#latest' });
   assert.equal(guardedPageURL('https://example.com/?_lp_handoff=anything').marked, true);
   assert.equal(guardedPageURL('file:///tmp/index.html'), null);
+});
+
+test('Android arrival keeps the guarded target without requesting a fallback reload', () => {
+  const target = guardedPageURL('https://profile.example/example/?a=%20&a=2&plus=+').url;
+  const config = { mode: 'native', androidAutoOpen: true };
+  const plan = openingPlan(target, config, android, { automatic: true });
+  assert.equal(plan.strategy, 'android-intent');
+  assert.equal(plan.target, target);
+  assert.equal(plan.fallback, target);
+  assert.equal(plan.uri, `intent://${target.slice(8)}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=com.android.chrome;end`);
+  // Explicit taps also leave fallback navigation to the page's Continue here link.
+  const tapped = openingPlan(target, config, android);
+  assert.equal(tapped.fallback, target);
+  assert.doesNotMatch(tapped.uri, /S.browser_fallback_url=/);
+  for (const androidAutoOpen of [undefined, false]) {
+    assert.equal(openingPlan(target, { ...config, androidAutoOpen }, android, { automatic: true }).reason, 'gesture_required');
+  }
+  assert.equal(openingPlan(target, { ...config, mode: 'direct' }, android, { automatic: true }).strategy, 'direct');
+  assert.equal(openingPlan(target, config, browserContext({ userAgent: 'Android Chrome' }), { automatic: true }).strategy, 'direct');
+  for (const suffix of ['#links', ';extra']) {
+    assert.equal(openingPlan(target + suffix, config, android, { automatic: true }).reason, 'intent_url_unsupported');
+  }
 });
 
 test('modified clicks and alternative anchor targets retain browser behavior', () => {
@@ -165,4 +188,51 @@ test('a different target during a pending handoff can continue directly, without
   const next = openingPlan('https://example.com/other', { mode: 'native' }, ios);
   assert.equal(h.controller.attempt(next), false);
   assert.equal(h.launches.length, 1);
+});
+
+test('an explicit tap supersedes a pending arrival attempt without a direct-navigation race', () => {
+  for (const trigger of ['cta', 'manual']) {
+    const h = harness(); h.controller.destroy();
+    const pending = [], cleaned = [], launched = [];
+    const win = Object.assign(h.win, {
+      setTimeout(callback) { pending.push(callback); return pending.length; },
+      clearTimeout() {}, // Deliberately retain stale callbacks to test their identity guard.
+    });
+    const controller = createHandoffController({ ...h.options, window: win,
+      launch(plan, reason) { launched.push({ plan, reason }); return () => cleaned.push(plan.target); },
+    });
+    const target = controller.claimAutomatic();
+    const arrival = openingPlan(target.split('#')[0], { mode: 'native', androidAutoOpen: true }, android, { automatic: true });
+    const destination = trigger === 'cta' ? 'https://example.com/example/more-soon/' : arrival.target;
+    const explicit = openingPlan(destination, { mode: 'native' }, android);
+    controller.attempt(arrival, { id: 'page', trigger: 'automatic' });
+    assert.equal(controller.attempt(explicit, { id: 'projects', trigger }), true);
+    assert.equal(launched.length, 2);
+    assert.equal(launched[1].reason, trigger);
+    assert.equal(controller.active.plan.target, destination);
+    assert.deepEqual(cleaned, [arrival.target]);
+    pending[0]();
+    assert.equal(controller.active.state, 'attempted');
+    assert.equal(controller.attempt(explicit, { id: 'projects', trigger }), true);
+    assert.equal(launched.length, 2);
+    pending[1]();
+    assert.equal(controller.active.state, 'fallback_visible');
+    assert.equal(controller.claimAutomatic(), null);
+    win.dispatchEvent(new Event('pageshow'));
+    assert.equal(launched.length, 2);
+    controller.destroy();
+  }
+});
+
+test('a hidden arrival attempt cannot be superseded until the page returns', () => {
+  const h = harness();
+  h.controller.attempt(plan, { trigger: 'automatic' });
+  h.visibility('hidden');
+  const next = openingPlan('https://example.com/other', { mode: 'native' }, ios);
+  assert.equal(h.controller.attempt(next, { trigger: 'cta' }), false);
+  assert.equal(h.launches.length, 1);
+  h.visibility('visible');
+  assert.equal(h.launches.length, 1);
+  assert.equal(h.controller.attempt(next, { trigger: 'cta' }), true);
+  assert.equal(h.launches.length, 2);
 });

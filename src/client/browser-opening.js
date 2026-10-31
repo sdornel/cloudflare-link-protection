@@ -22,7 +22,7 @@ export function guardedPageURL(value) {
   return { url: `${main}${separator}${HANDOFF_MARKER}=1${fragment}`, marked: false };
 }
 
-export function openingPlan(target, { mode = 'direct', iosStrategy = 'instagram', androidPackage = 'com.android.chrome' } = {}, context = {}, { automatic = false, pageURL } = {}) {
+export function openingPlan(target, { mode = 'direct', iosStrategy = 'instagram', androidPackage = 'com.android.chrome', androidAutoOpen = false } = {}, context = {}, { automatic = false, pageURL } = {}) {
   // Only the built-in neutral destination can be relative. Use the current
   // HTTPS origin, never a query parameter, and leave absolute URL bytes intact.
   if (target === PLACEHOLDER_URL && isHTTPS(pageURL)) target = new URL(target, pageURL).href;
@@ -39,14 +39,19 @@ export function openingPlan(target, { mode = 'direct', iosStrategy = 'instagram'
     return direct('unsupported_strategy');
   }
   if (context.platform === 'android') {
-    if (automatic) return direct('gesture_required');
+    // Automatic attempts are an explicit experiment; the host WebView still
+    // decides whether to honor the request.
+    if (automatic && !androidAutoOpen) return direct('gesture_required');
     // Do not silently discard fragments or risk ambiguous intent URI parsing.
     if (/[#;]/.test(target)) return direct('intent_url_unsupported');
     if (androidPackage !== 'default' && !/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(androidPackage)) return direct('invalid_package');
     const packageField = androidPackage === 'default' ? '' : `package=${androidPackage};`;
+    // Do not include browser_fallback_url: hosts can silently load it in-app
+    // instead of presenting an external-browser prompt. Continue here remains
+    // an explicit choice on the page, with the exact target below.
     return {
       strategy: 'android-intent', target, fallback: target,
-      uri: `intent://${target.slice(8)}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;${packageField}S.browser_fallback_url=${encodeURIComponent(target)};end`,
+      uri: `intent://${target.slice(8)}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;${packageField}end`,
     };
   }
   return direct('unsupported_context');

@@ -6,7 +6,7 @@
 
 Both the hosted `/example/` page and standalone example use a generic personal bio, without a demo notice or publishing panel. The hosted buttons all lead to `/example/more-soon/`, a static **More soon** page with a back link. `placeholderLinks` stays enabled and `previewNote` is empty; both pages remain noindex. Publishing instructions are in [Cloudflare setup](cloudflare.md).
 
-The hosted example uses the sample's `native` mode with `autoOpen: true` and `showManual: false`: one experimental automatic iOS same-page attempt, then native destination attempts on eligible button taps, including Android. It resolves the More soon destination on the current HTTPS origin and retains a direct fallback. HTTP localhost and ordinary browsers use normal links. Age acknowledgment and branded verification remain off in the sample; Cloudflare domain rules can still apply. The offline `example.html` has no scripts or browser handoff. See the [neutral handoff checklist](testing.md#hosted-example-handoff-check).
+The hosted example uses the sample's `native` mode with `autoOpen: true`, `androidAutoOpen: true`, and `showManual: false`: one experimental automatic same-page attempt on iOS or Android, then native destination attempts on eligible button taps. The host app may block the attempt or require confirmation. It resolves the More soon destination on the current HTTPS origin and retains a direct fallback. HTTP localhost and ordinary browsers use normal links. Age acknowledgment and branded verification remain off in the sample; Cloudflare domain rules can still apply. The offline `example.html` has no scripts or browser handoff. See the [neutral handoff checklist](testing.md#hosted-example-handoff-check).
 
 `src/index.html` is the profile template, not a ready-to-open page. The build selects `SITE_CONFIG_JSON` first, then `config/site.json` if it exists, then the neutral `config/site.example.json`. The demo is generated at `example/index.html`; a configured profile uses its `profilePath`. Sample builds and non-root creator builds generate a distinct homepage from `src/landing.html`. Configuration is applied at build time; raw config is never copied to the output.
 
@@ -205,7 +205,8 @@ The [schema](../config/site.schema.json) supplies editor hints; the build additi
 | Option | Default / behavior |
 | --- | --- |
 | `browserOpening.mode` | `direct` when omitted; `native` enables supported mobile assistance |
-| `browserOpening.autoOpen` | `false`; experimental one-time iOS page handoff |
+| `browserOpening.autoOpen` | `false`; experimental one-time same-page handoff; Android also requires `androidAutoOpen` |
+| `browserOpening.androidAutoOpen` | `false`; opt into one Android intent on arrival with `autoOpen` and native mode; may be blocked or prompt; enabled in the public sample only |
 | `browserOpening.showManual` | Default `true`; `false` removes the browser-open button and same-page assistance, and hides browser retries/instructions on CTA fallback. Pair with `autoOpen: true` for automatic page opening without a manual offer. |
 | `browserOpening.iosStrategy` | `instagram`; optional `safari` or `chrome`. Facebook uses Safari instead of Instagram's scheme. None guarantees the default browser. |
 | `browserOpening.androidPackage` | `com.android.chrome`; `default` omits the package for OS resolution/chooser; validate on real devices |

@@ -22,6 +22,7 @@
     "test": "node --test tests/*.test.mjs",
     "example:refresh": "node scripts/example.mjs",
     "test:browser": "playwright test",
+    "test:handoff": "playwright test --config tests/browser/handoff.config.mjs",
     "screenshots": "node scripts/screenshots.mjs",
     "check:performance": "node scripts/performance.mjs",
     "check:workers": "npm run build:example && wrangler deploy --dry-run"
