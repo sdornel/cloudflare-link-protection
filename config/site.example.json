@@ -5,6 +5,10 @@
   "siteUrl": "",
   "profilePath": "/",
   "placeholderLinks": true,
+  "statusBadge": {
+    "enabled": false,
+    "label": "Online"
+  },
   "robots": {
     "allowCrawling": true
   },

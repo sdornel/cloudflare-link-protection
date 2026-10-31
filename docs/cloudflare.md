@@ -44,6 +44,53 @@ Ignored local images are unavailable to Git-backed builds. Use HTTPS image URLs,
 
 Encrypted input stays outside Git, but the rendered profile is public. GitHub deployment checks may expose its URL. If this association matters, build locally from the same repository and deploy the output without Git integration. Only trusted code should run with production build secrets.
 
+### Sync private configuration without dashboard copying
+
+The local `npm run config:sync` command sends `config/site.json` directly to Cloudflare as the encrypted `SITE_CONFIG_JSON` build secret. Your GitHub integration keeps building application code from the repository. The command explicitly reads the local file, ignoring any `SITE_CONFIG_JSON` environment override. It does not copy the config into Git, change runtime Turnstile keys, or upload local code.
+
+Set up access once on each publishing computer:
+
+1. Create a **user API token** at [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens) with **Account → Workers Builds Configuration → Edit** and **Account → Workers Scripts → Read**, scoped to the account hosting the Worker. The API calls the first permission `Workers CI Write`; this is separate from your existing build/deployment token. Account-owned tokens are not supported by the Builds API. See [Cloudflare's API prerequisites](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/#create-an-api-token).
+2. Find your **Account ID** in Cloudflare; use the account identifier, not the domain's Zone ID.
+3. Create or edit **`.env.cloudflare` at the repository root**. This file is ignored. Put the following values in it, replacing the placeholders locally:
+
+   ```dotenv
+   CLOUDFLARE_ACCOUNT_ID=your_account_id
+   CLOUDFLARE_API_TOKEN=your_user_api_token
+   CLOUDFLARE_WORKER_NAME=cloudflare-link-protection
+   ```
+
+4. Keep the Worker connected to GitHub with production branch `main`, build command `npm run build`, and deploy command `npx wrangler deploy`. As with manual secret setup, keep private inputs restricted to trusted production builds. The sync command selects only a GitHub trigger whose branch inclusion list is exactly the production branch and whose exclusion list is empty; it refuses wildcard or ambiguous targets. It does not alter your branch settings.
+
+First validate without contacting Cloudflare:
+
+```sh
+npm run config:sync -- --dry-run
+```
+
+For a **configuration-only change**, edit `config/site.json`, then run:
+
+```sh
+npm run config:sync -- --deploy
+```
+
+This validates a temporary build, updates the secret, verifies that Cloudflare marks it secret, and requests a production-branch build. Check **Builds** for completion: an accepted request is not a confirmed deployment. It builds the latest code already on GitHub; uncommitted or unpushed application changes are not included.
+
+For **code and configuration changes together**, sync before pushing reviewed commits:
+
+```sh
+npm run config:sync
+git push
+```
+
+Run the push only after sync succeeds. GitHub's existing integration then starts the build. Avoid also using `--deploy` for the same push unless you intend a second build. Sync alone updates the saved configuration but does not rebuild the live site. Nothing runs automatically on file saves or ordinary pushes; the command automates the transfer explicitly. Do not put this command in Cloudflare's build/deploy settings or public CI. No Git hooks are installed.
+
+The script discovers the Worker tag and production trigger from the configured name. If several otherwise eligible triggers exist, set optional `CLOUDFLARE_BUILD_TRIGGER_ID` in `.env.cloudflare` to the intended trigger UUID; it must still pass branch and Worker checks. For a production branch other than `main`, set `SITE_PRODUCTION_BRANCH` both in this local file and as a readable build variable on that trigger. Existing process environment values override `.env.cloudflare`. The script does not read `.env` or `.dev.vars`, which may contain unrelated runtime credentials.
+
+Only `SITE_CONFIG_JSON` is patched, using `is_secret: true`; unrelated variables remain unchanged. The token and configuration travel in the HTTPS request, never command-line arguments or logs. API responses/errors are not printed because build metadata can contain sensitive values. Requests reject redirects, time out after 15 seconds, and are not retried automatically. If the secret updates but verification or the build request fails, the command says so; inspect Builds before retrying because a timed-out write may have applied. [Build-variable update contract](https://developers.cloudflare.com/api/resources/workers_builds/subresources/triggers/subresources/environment_variables/methods/upsert/), [trigger discovery](https://developers.cloudflare.com/api/resources/workers_builds/subresources/triggers/methods/list/), and [starting a build](https://developers.cloudflare.com/api/resources/workers_builds/subresources/triggers/methods/create_build/).
+
+The compact config must fit the API's **5,000-character** variable limit. Local `/images/` references are rejected: GitHub cannot retrieve ignored files, so use publicly readable HTTPS images or initials. Secrets cannot be downloaded to restore a lost local config. Keep a private backup when moving between computers; syncing from an older copy replaces the remote config. The rendered page and destinations remain public. Multi-profile storage/editor support remains a separate roadmap item.
+
 ### Landing, demo, and profile on the same Worker
 
 Set `"profilePath": "/sample-creator"` in the complete private config and keep `siteUrl` as the HTTPS origin, for example `https://example.com`. The build emits the platform landing at `/`, the neutral demo at `/example/`, and `/sample-creator/index.html` with its own assets. Optional `landing` settings in the private config customize only the homepage. Deploy all of `dist/` (or `dist-private/` if using the optional private command); do not point Wrangler at the profile subfolder. This needs no extra custom domain or DNS entry. Omitted `profilePath` (or `/`) keeps the configured page at the root.

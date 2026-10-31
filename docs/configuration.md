@@ -17,6 +17,8 @@ To create your own page:
 
 The checked-in sample must remain neutral and contain no real deployment identity, destination links, personal images, or analytics token. `example.html` is also included in the public-source audit. Neither regular nor private builds rewrite it or automatically include it in deployed output.
 
+To send local edits to an existing Git-connected Worker without copying JSON, use `npm run config:sync` after the [one-time local setup](cloudflare.md#sync-private-configuration-without-dashboard-copying). Add `-- --deploy` for a configuration-only rebuild using code already on GitHub. `-- --dry-run` validates locally without credentials or network. The command reads `config/site.json` explicitly and keeps it ignored; it does not download or merge remote configuration.
+
 ## Site configuration
 
 `config/site.example.json` is the public example. `config/site.json` is the ignored, complete config for another deployment. Do not put personal deployment data in the public example.
@@ -38,12 +40,13 @@ Create `config/site.json` by copying the sample on a fresh clone; do not overwri
 
 | Field | Meaning |
 | --- | --- |
-| `name`, `bio`, `description` | Visible identity and page description |
+| `name`, `bio`, `description` | Visible identity and page description; use `bio: ""` to omit the visible biography |
 | `siteUrl` | Final HTTPS origin; empty for the demo |
 | `profilePath` | `/` for legacy root profiles; a path such as `/sample-creator` keeps the platform landing at `/`; `/example` is reserved |
 | `landing` | Optional private overrides for homepage content, appearance, and styling |
 | `placeholderLinks` | Keeps unfinished sites out of search indexing and shows `previewNote` |
 | `profile.initials`, `profile.image`, `profile.alt` | Monogram or portrait and alternative text |
+| `statusBadge` | Optional manual status pill below the bio; `enabled` defaults to `false`, `label` defaults to `Online` (1–40 characters) |
 | `primaryLink` | `label`, direct HTTPS `url`, and `icon` |
 | `secondaryLinks` | Same link fields plus `enabled` |
 | `previewNote` | Optional text while placeholder mode is enabled |
@@ -55,6 +58,18 @@ Create `config/site.json` by copying the sample on a fresh clone; do not overwri
 | `verification` | Optional branded Turnstile gate: enabled flag, session duration, widget theme, copy, and style overrides; runtime credentials stay outside JSON |
 
 Icons are `none`, `arrow`, or `heart`. Destinations require HTTPS except for the exact built-in placeholder `/example/more-soon/`, permitted only when `placeholderLinks` is true. That internal route always uses direct navigation; it does not attempt browser handoff. Other relative paths, query variations, and protocol-relative URLs are rejected. To use a final site, replace placeholder links with HTTPS destinations, set `siteUrl`, and set `placeholderLinks: false`. The production build rejects an unset origin or unfinished placeholders; it cannot verify ownership or availability of destinations.
+
+## Status pill
+
+To show a small rounded pill with a green dot and **Online** below the biography, merge this into the complete private configuration:
+
+```json
+"statusBadge": { "enabled": true, "label": "Online" }
+```
+
+Set `enabled` to `false` to hide it. Set `bio` to `""` to replace the biography with the pill directly below the name. The label is manually configured and stays the same until the next build/deployment; it is not connected to activity on another service. No extra JavaScript or network requests are needed. The dot is decorative, while the text makes the status readable without relying on color. The neutral demo leaves this feature disabled.
+
+Customize colors through `styles.variables`: `status-background`, `status-text`, `status-border`, `status-dot`, `status-dot-highlight`, and `status-dot-halo`. Size, spacing, shape, and shadow use the usual `styles.rules` overrides for `.status-badge`, `.status-dot`, and `.status-label`. Preserve readable contrast when customizing. For GitHub deployments, update the complete `SITE_CONFIG_JSON` build secret along with deploying the supporting code.
 
 ## Profile paths
 

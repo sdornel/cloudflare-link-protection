@@ -1,6 +1,18 @@
 # Implementation and verification status
 
-Updated 2026-10-30. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
+Updated 2026-10-31. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
+
+## Configurable status pill and optional bio — 2026-10-31
+
+Added an optional static status pill with a decorative green dot, plain-text label, and theme-controlled colors, shape, and spacing. `statusBadge` defaults to disabled; private configuration can enable it without changing the neutral example. An empty or whitespace-only `bio` omits the paragraph, allowing the pill to sit directly below the name. No new scripts, network requests, or live presence tracking are introduced. Both standalone neutral snapshots were refreshed from the shared renderer.
+
+Validation: **65 focused tests pass** across configuration, rendering, synchronization, and verification. Existing validation/escaping checks now cover the badge and empty bio, and the default badge text passes the existing WCAG AA contrast check. The configured build and public-source audit pass, with the existing Git-index inspection limitation. Built-output checks confirm a single profile link, escaped literal text in its label, the status pill replacing the bio, and retained age confirmation. Chromium could not launch, so visual browser inspection remains unverified. No live deployment was performed.
+
+## Private build-secret synchronization — 2026-10-30
+
+Added the operator command `npm run config:sync` to validate the ignored local configuration and upload it directly to the existing production GitHub build trigger as a secret. `--dry-run` is offline; `--deploy` requests a production-branch build after syncing and checking the secret flag. Credentials stay in ignored `.env.cloudflare` or the process environment. Missing/ambiguous production targets, branch mismatches, local-only images, oversized values, and failed validation stop before writing. No CI hooks, runtime key changes, new infrastructure, or private repositories are introduced.
+
+Validation: **35 tests pass** (13 synchronization tests using mocked Cloudflare responses and 22 build tests). The configured offline dry run, syntax check, and diff check pass. The public-source audit passes for 81 files, retaining the existing Git-index inspection limitation. No authenticated API request or live deployment was performed; account credentials still require local setup. The public API's trigger response must be confirmed against the connected Worker on the first live run; unexpected response shapes fail without changing its build settings.
 
 ## Publication review — 2026-10-30
 

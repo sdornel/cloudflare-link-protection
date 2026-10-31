@@ -11,6 +11,12 @@
     "avatar-text": "#314d7b",
     "link-background": "#ffffff",
     "link-hover-background": "#ffffff",
+    "status-background": "#eefbf3",
+    "status-text": "#166534",
+    "status-border": "#c7ecd4",
+    "status-dot": "#15803d",
+    "status-dot-highlight": "#4ade80",
+    "status-dot-halo": "#15803d14",
     "page-background": "radial-gradient(ellipse at 8% 6%, #e1e9f880, transparent 48%), radial-gradient(ellipse at 94% 83%, #e1e9f860, transparent 45%), var(--background)",
     "avatar-shadow": "0 0 0 1px var(--border), 0 8px 28px #17203309",
     "primary-shadow": "0 6px 20px #315dc41a",
@@ -88,6 +94,37 @@
       "font-size": "17px",
       "font-weight": "400",
       "line-height": "1.6",
+      "overflow-wrap": "anywhere"
+    },
+    ".status-badge": {
+      "display": "inline-flex",
+      "align-items": "center",
+      "justify-content": "center",
+      "gap": "9px",
+      "max-width": "100%",
+      "margin": "18px 0 0",
+      "padding": "6px 12px",
+      "border": "1px solid var(--status-border)",
+      "border-radius": "999px",
+      "background": "var(--status-background)",
+      "color": "var(--status-text)",
+      "font-size": "13px",
+      "font-weight": "600",
+      "line-height": "1.4",
+      "letter-spacing": "0.02em",
+      "text-align": "left",
+      "box-shadow": "0 2px 8px #16653406"
+    },
+    ".status-dot": {
+      "flex": "0 0 8px",
+      "width": "8px",
+      "height": "8px",
+      "border-radius": "50%",
+      "background": "radial-gradient(circle at 30% 30%, var(--status-dot-highlight), var(--status-dot) 72%)",
+      "box-shadow": "0 0 0 3px var(--status-dot-halo)"
+    },
+    ".status-label": {
+      "min-width": "0",
       "overflow-wrap": "anywhere"
     },
     ".links": {
@@ -388,6 +425,10 @@
       }
     },
     "(forced-colors: active)": {
+      ".status-badge, .status-dot": {
+        "border": "1px solid CanvasText",
+        "box-shadow": "none"
+      },
       ".link, .avatar": {
         "border": "1px solid ButtonText"
       }

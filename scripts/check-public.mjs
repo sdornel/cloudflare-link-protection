@@ -48,7 +48,7 @@ export async function auditPublic(projectRoot = root) {
     const privateConfig = await readJSON(privatePath, 'Local private configuration');
     const publicConfig = await readJSON(path.join(projectRoot, 'config/site.example.json'), 'Public configuration');
     const displayStrings = (config) => [
-      config.name, config.bio, config.description, config.siteUrl, config.profilePath, config.profilePath?.slice(1), config.seo?.title,
+      config.name, config.bio, config.description, config.siteUrl, config.profilePath, config.profilePath?.slice(1), config.seo?.title, config.statusBadge?.label,
       config.profile?.image, config.seo?.image, config.analytics?.cloudflareToken, config.analytics?.ga4MeasurementId,
       ...Object.values(config.landing ?? {}).filter(value => typeof value === 'string'),
       ...Object.values(config.verification?.copy ?? {}).filter(value => typeof value === 'string'),

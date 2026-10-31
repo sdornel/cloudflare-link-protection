@@ -11,11 +11,15 @@ const boolean = (value, field) => { if (typeof value !== 'boolean') throw new Er
 
 export function normalizeFeatures(config) {
   if (!object(config)) throw new Error('Configuration must be an object.');
-  for (const key of ['browserOpening', 'ageAcknowledgment', 'analytics']) {
+  for (const key of ['browserOpening', 'ageAcknowledgment', 'analytics', 'statusBadge']) {
     if (config[key] !== undefined && !object(config[key])) throw new Error(`${key} must be an object.`);
   }
   const version = config.schemaVersion === undefined ? 1 : config.schemaVersion;
   choice(version, [1, 2], 'schemaVersion');
+  const statusBadge = { enabled: false, label: 'Online', ...config.statusBadge };
+  if (Object.keys(statusBadge).some(key => !['enabled', 'label'].includes(key))) throw new Error('statusBadge contains an unsupported field.');
+  boolean(statusBadge.enabled, 'statusBadge.enabled');
+  if (typeof statusBadge.label !== 'string' || !statusBadge.label.trim() || statusBadge.label.length > 40) throw new Error('statusBadge.label must be nonempty text of at most 40 characters.');
   const input = config.browserOpening ?? {};
   if (input.labels !== undefined && !object(input.labels)) throw new Error('browserOpening.labels must be an object.');
   const browserOpening = {
@@ -53,7 +57,7 @@ export function normalizeFeatures(config) {
     return result;
   };
   if (!Array.isArray(config.secondaryLinks)) throw new Error('secondaryLinks must be an array.');
-  return { ...config, schemaVersion: version, browserOpening, ageAcknowledgment, analytics,
+  return { ...config, schemaVersion: version, browserOpening, ageAcknowledgment, analytics, statusBadge,
     primaryLink: link(config.primaryLink, 'primary'), secondaryLinks: config.secondaryLinks.map((entry, i) => link(entry, `secondary-${i + 1}`)) };
 }
 

@@ -206,6 +206,7 @@ Only `ENOENT` for the local file permits normal-build fallback. An explicitly se
 | `landing` | Optional overrides for landing name, initials, eyebrow, headline, description, CTA label, footer, appearance, and JSON styles; demo stays independent |
 | `placeholderLinks`, `previewNote` | Explicit unfinished-site behavior and optional visitor copy |
 | `profile` | Initials, optional image, descriptive alternative text |
+| `statusBadge` | Optional manual status pill below the bio: `enabled` defaults to `false`; `label` defaults to `Online` and accepts 1–40 characters of nonempty plain text |
 | `primaryLink` | Required primary label, HTTPS URL (or the built-in route in placeholder mode), and optional icon |
 | `secondaryLinks` | Ordered links with explicit `enabled` boolean |
 | `seo` | Title and optional sharing image/alternative text |
@@ -376,6 +377,8 @@ Dedicated Bouncy support is deferred. Do not add a `bouncy` mode, alternate prov
 
 Preserve the existing centered profile, portrait/initials, short biography, prominent primary CTA, secondary links, and footer. Extend it with unobtrusive browser assistance and optional acknowledgment. Public samples use generic branding and the local “More soon” destination; synthetic external-link tests use `example.com`.
 
+An optional `statusBadge` renders a small centered pill below the biography and above the links, with a green decorative dot on the left and the configured label on the right. Setting `bio` to an empty or whitespace-only string omits the bio paragraph entirely, placing the pill directly below the name instead; `bio` must still be a string. Keep the separate SEO description required. Use escaped text and an `aria-hidden` dot, with all appearance controlled by the shared theme/private style overrides. Keep it static and noninteractive: no polling, presence tracking, blinking, live-region announcements, or added client JavaScript. The operator controls this label manually through configuration and rebuilds; it must not be described as a verified real-time presence integration. Omitted settings and the neutral sample leave it disabled. It appears only on the configured profile, not on the platform landing or verification gate. Preserve all link and age-confirmation behavior.
+
 Accessibility targets: semantic headings/navigation, visible keyboard focus, usable 200% zoom, no horizontal overflow at 320 CSS pixels, minimum 44-by-44 CSS-pixel controls, WCAG AA text contrast in defaults, reduced motion, descriptive image alternatives, and status announcements that do not unexpectedly move focus. Test the chosen custom theme as well as defaults.
 
 Age acknowledgment is an optional **self-attestation**, not identity verification, access control, or a guarantee of regulatory compliance. Use a small visible 18+ notice and deliberate acknowledgment; do not collect birth dates or identity documents. The same content and notice are delivered to all visitors.
@@ -464,6 +467,20 @@ A public GitHub deployment check may expose a production deployment URL. Config 
 - Keep rollback instructions and verify headers, 404 status, links, and analytics after deployment. Rebuild to apply config changes.
 
 Primary references: [build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/), [branch controls](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/), and [headers](https://developers.cloudflare.com/workers/static-assets/headers/). Dashboard labels and entitlements must be checked when the operational guide is updated.
+
+### Private configuration synchronization
+
+Provide `npm run config:sync` to upload the ignored local `config/site.json` to the existing Git-connected Worker's `SITE_CONFIG_JSON` build secret. Read this file explicitly, never fall back to the sample or use a stale `SITE_CONFIG_JSON` environment override. Validate a complete build in a temporary directory before any network request, without changing `dist/`. Reject local-only images because Git builds cannot retrieve them. Compact the JSON and enforce the Builds API's 5,000-character variable limit before uploading.
+
+Read one-time connection settings from ignored `.env.cloudflare`, with process environment taking precedence: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_WORKER_NAME`, optional `SITE_PRODUCTION_BRANCH` (default `main`), and optional `CLOUDFLARE_BUILD_TRIGGER_ID` to disambiguate. Require a user API token with Workers Builds Configuration Edit (API permission: Workers CI Write) and Workers Scripts Read. Keep credentials separate from site content and never print token, configuration, raw API responses, or provider errors.
+
+Resolve the named Worker's tag through the Scripts API, then inspect its build triggers. Select exactly one active GitHub trigger whose branch inclusion list contains only the configured production branch and whose exclusion list is empty. Reject missing, ambiguous, wildcard, or preview targets rather than modifying branch controls. An explicit trigger ID must still meet those checks. PATCH only `SITE_CONFIG_JSON` with `is_secret: true` through the build-variables endpoint, preserving other build variables and runtime Turnstile keys. Verify the stored variable is secret; the API cannot return its value for comparison. Use the fixed Cloudflare API HTTPS origin, reject redirects, bound request time, and make no automatic retries.
+
+`--dry-run` performs local validation only and needs no credentials. `--deploy` syncs first, then requests a build of the selected production branch from GitHub; it does not upload local code or push commits. A queued build is not a confirmed deployment. A failed build request after syncing must report that the secret was already updated. Commands are operator-only and refuse CI execution; no automatic hooks or cloud account changes occur simply by installing or building the project. Run sync before pushing code; for configuration-only changes, use `--deploy`. This removes repeated dashboard copying while retaining the existing single-profile format and GitHub deployment integration. It does not implement the future multi-profile collection roadmap.
+
+Test validation-before-network, private-file selection, temporary output cleanup, exact production-trigger selection, unchanged unrelated settings, request ordering, timeout/redirect/error redaction, oversized configuration, and partial failure. Live API/deployment verification requires separately provisioned credentials. References: [build-secret updates](https://developers.cloudflare.com/api/resources/workers_builds/subresources/triggers/subresources/environment_variables/methods/upsert/), [trigger discovery](https://developers.cloudflare.com/api/resources/workers_builds/subresources/triggers/methods/list/), and [build requests](https://developers.cloudflare.com/api/resources/workers_builds/subresources/triggers/methods/create_build/).
+
+Before writing the secret, confirm the trigger's existing `SITE_PRODUCTION_BRANCH` variable agrees with the selected branch (absence means `main`). A custom production branch must already be configured remotely; synchronization must not silently change that variable or upload configuration for a branch the builder will reject.
 
 ### Cloudflare Free capabilities and limits
 

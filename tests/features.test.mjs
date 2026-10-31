@@ -9,11 +9,13 @@ const sample = JSON.parse(await readFile(new URL('../config/site.example.json', 
 const fresh = () => structuredClone(sample);
 
 test('legacy features default to direct and public options use an explicit allowlist', () => {
-  const config = fresh(); delete config.browserOpening;
+  const config = fresh(); delete config.browserOpening; delete config.statusBadge;
   config.internalNote = 'PRIVATE_MARKER';
   config.analytics.internalNote = 'PRIVATE_MARKER';
   const value = normalizeFeatures(config);
   assert.equal(value.browserOpening.mode, 'direct'); assert.equal(value.ageAcknowledgment.enabled, false);
+  assert.deepEqual(value.statusBadge, { enabled: false, label: 'Online' });
+  assert.ok(!Object.hasOwn(publicOptions(value), 'statusBadge'));
   assert.doesNotMatch(JSON.stringify(publicOptions(value)), /PRIVATE_MARKER|cloudflareToken/);
   const text = '</script><script>alert(1)</script>&';
   assert.doesNotMatch(safeJSON({ text }), /<|>|&/);
@@ -22,6 +24,8 @@ test('legacy features default to direct and public options use an explicit allow
 
 test('feature validation rejects invalid modes, ranges, IDs, disabled-link strategies and injection', () => {
   const mutations = [
+    c => c.bio = null,
+    c => delete c.bio,
     c => c.schemaVersion = 3,
     c => c.browserOpening = { mode: 'bouncy' },
     c => c.browserOpening = { autoOpen: 'yes' },
@@ -39,6 +43,13 @@ test('feature validation rejects invalid modes, ranges, IDs, disabled-link strat
     c => c.ageAcknowledgment = { cancelLabel: 'x'.repeat(501) },
     c => c.analytics.ga4MeasurementId = 'SECRET_MARKER',
     c => c.analytics.ga4Consent = 'maybe',
+    c => c.statusBadge = null,
+    c => c.statusBadge = [],
+    c => c.statusBadge = { enabled: 'true' },
+    c => c.statusBadge = { label: ' ' },
+    c => c.statusBadge = { label: null },
+    c => c.statusBadge = { label: 'x'.repeat(41) },
+    c => c.statusBadge = { live: true },
   ];
   for (const mutate of mutations) { const config = fresh(); mutate(config); assert.throws(() => validateConfig(config), error => !error.message.includes('SECRET_MARKER')); }
 });

@@ -96,7 +96,8 @@ export function validateLanding(config, { partial = false } = {}) {
 
 export function validateConfig(config, { production = false } = {}) {
   if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Configuration must be an object.');
-  for (const field of ['name', 'bio', 'description']) requireText(config[field], field);
+  for (const field of ['name', 'description']) requireText(config[field], field);
+  if (typeof config.bio !== 'string') throw new Error('bio must be text; use an empty string to hide it.');
   requireText(config.profile?.initials, 'profile.initials');
   requireText(config.seo?.title, 'seo.title');
   if (config.robots !== undefined) {

@@ -16,6 +16,7 @@
     "preview": "node scripts/serve.mjs",
     "preview:private": "node scripts/serve.mjs --private",
     "check:public": "node scripts/check-public.mjs",
+    "config:sync": "node scripts/sync-cloudflare-config.mjs",
     "check:crawl": "node scripts/crawl-check.mjs",
     "check:crawl:browser": "node scripts/browser-crawl-check.mjs",
     "test": "node --test tests/*.test.mjs",

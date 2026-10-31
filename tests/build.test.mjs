@@ -51,6 +51,7 @@ test('explicit example build ignores private inputs and emits direct functional 
   const html = await readFile(path.join(outDir, 'example/index.html'), 'utf8');
   for (const link of [original.primaryLink, ...original.secondaryLinks]) assert.ok(html.includes(`href="${link.url}"`));
   assert.match(html, /noindex, follow/);
+  assert.doesNotMatch(html, /class="status-badge"/);
   assert.doesNotMatch(html, /id="publish-guide"|Publish with Cloudflare|Software engineer|Demo ·|class="preview-note"/);
   assert.doesNotMatch(html, /PRIVATE_MARKER|http-equiv=["']refresh|target=["']_blank|onclick=/i);
   assert.match(await readFile(path.join(outDir, 'robots.txt'), 'utf8'), /User-agent: \*\nAllow: \//);
@@ -235,8 +236,14 @@ test('text is escaped, disabled links are omitted, and analytics is opt-in', asy
   config.name = '<img src=x onerror=alert(1)> & "Name"';
   config.secondaryLinks[0].enabled = false;
   config.analytics.cloudflareToken = 'a'.repeat(32);
-  const { html } = await built(t, { config });
+  config.statusBadge = { enabled: true, label: '<b>Online</b>' };
+  config.bio = '';
+  const { html, outDir } = await built(t, { config });
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt; &amp; &quot;Name&quot;/);
+  assert.match(html, /class="status-label">&lt;b&gt;Online&lt;\/b&gt;<\/span>/);
+  assert.match(html, /class="status-dot" aria-hidden="true"/);
+  assert.doesNotMatch(html, /<p class="bio">/);
+  assert.doesNotMatch(await readFile(path.join(outDir, 'example/index.html'), 'utf8'), /class="status-badge"/);
   assert.ok(!html.includes(`data-link-id="${config.secondaryLinks[0].id}"`));
   assert.equal((html.match(/<script /g) || []).length, 1);
 });
@@ -307,7 +314,7 @@ test('default text colors meet WCAG AA normal text contrast', () => {
     return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
   };
   const v = theme.variables;
-  for (const [text, background] of [[v['on-accent'], v.accent], [v['on-accent'], v['accent-hover']], [v.text, v['link-background']], [v.muted, v.background], [v['avatar-text'], v['avatar-background']]]) {
+  for (const [text, background] of [[v['on-accent'], v.accent], [v['on-accent'], v['accent-hover']], [v.text, v['link-background']], [v.muted, v.background], [v['avatar-text'], v['avatar-background']], [v['status-text'], v['status-background']]]) {
     const values = [luminance(text), luminance(background)].sort((a, b) => a - b);
     assert.ok((values[1] + 0.05) / (values[0] + 0.05) >= 4.5, 'Default text contrast is below 4.5:1');
   }

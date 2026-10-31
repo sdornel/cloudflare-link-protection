@@ -28,7 +28,8 @@ export function renderPage({ config, template, profile, share, assetVersion, cli
   }
   const tokens = {
     TITLE: escapeHTML(config.seo.title), DESCRIPTION: escapeHTML(config.description),
-    NAME: escapeHTML(config.name), BIO: escapeHTML(config.bio), BACKGROUND: config.appearance.browserThemeColor,
+    NAME: escapeHTML(config.name), BIO: config.bio.trim() ? `<p class="bio">${escapeHTML(config.bio)}</p>` : '', BACKGROUND: config.appearance.browserThemeColor,
+    STATUS_BADGE: config.statusBadge.enabled ? `<p class="status-badge"><span class="status-dot" aria-hidden="true"></span><span class="status-label">${escapeHTML(config.statusBadge.label)}</span></p>` : '',
     COLOR_SCHEME: config.appearance.colorScheme, ROBOTS: indexable ? 'index, follow' : 'noindex, follow', SEO: seo.join('\n    '),
     TWITTER_CARD: siteURL && share ? 'summary_large_image' : 'summary', ASSET_VERSION: assetVersion, ASSET_BASE: assetBase,
     AVATAR: profile ? `<img src="${escapeHTML(profile.src)}" alt="${escapeHTML(config.profile.alt)}" width="124" height="124" fetchpriority="high" decoding="async">` : `<span aria-hidden="true">${escapeHTML(config.profile.initials)}</span>`,

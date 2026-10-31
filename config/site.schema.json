@@ -18,6 +18,15 @@
     "analytics"
   ],
   "properties": {
+    "statusBadge": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional static status pill below the bio. Set manually; does not track real-time presence.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "label": { "type": "string", "minLength": 1, "maxLength": 40, "pattern": "\\S", "default": "Online" }
+      }
+    },
     "robots": {
       "type": "object",
       "additionalProperties": false,
@@ -43,8 +52,7 @@
     },
     "bio": {
       "type": "string",
-      "minLength": 1,
-      "pattern": "\\S"
+      "description": "Profile biography. An empty or whitespace-only string hides the bio paragraph."
     },
     "description": {
       "type": "string",

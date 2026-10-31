@@ -106,6 +106,8 @@ Use separate Workers for independently deployed sites, or publish the landing, d
 
 Follow [Cloudflare deployment](docs/cloudflare.md) for setup, domains, HTTPS, independent sites, and rollback. [Security](docs/security.md) covers WAF and Managed Challenge; [branded verification](docs/verification.md) covers Turnstile and runtime keys. Existing Pages projects can serve generated output with verification disabled; the gate requires the Worker script. [Cloudflare recommends Workers for new projects](https://developers.cloudflare.com/pages/).
 
+To update private configuration without copying JSON into the dashboard, use `npm run config:sync`. Add `-- --deploy` to request a rebuild from the GitHub production branch after syncing. This keeps private inputs out of the repository; it requires a one-time local API token setup. See [automatic configuration transfer](docs/cloudflare.md#sync-private-configuration-without-dashboard-copying).
+
 ## Verify and contribute
 
 ```sh
