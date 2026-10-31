@@ -2,6 +2,12 @@
 
 Updated 2026-10-31. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
 
+## Hosted example browser handoff — 2026-10-31
+
+The public sample now explicitly enables native automatic iOS same-page handoff with manual browser offers hidden. Its three More soon links inherit the configured opening mode and use the shared tap-triggered iOS/Android strategies. Only the exact built-in relative path can resolve against the current HTTPS origin; absolute destination bytes remain unchanged, and HTTP/offline previews retain ordinary navigation. No private configuration is copied into the demo. Age acknowledgment and branded verification remain disabled in the sample. The standalone snapshot was refreshed and remains script-free.
+
+Validation: **131 Node tests pass**, including URL resolution/fallback boundaries, conservative omitted defaults, sample settings, routing, and verification. One existing Git-index directory-alias test fails with `spawnSync git EPERM`, and another Git-dependent test skips; the full suite is not green in this environment. The configured build, syntax checks, neutral snapshot comparison, and generated-output checks pass. The public-source audit passes for 81 files with Git-index inspection unavailable. Added browser regressions for both simulated mobile platforms using the unchanged sample and real app code, but Playwright's configured web server could not start, so these browser tests remain unexecuted here. No live deployment or physical-device verification was performed. See the [neutral device checklist](testing.md#hosted-example-handoff-check).
+
 ## Configurable status pill and optional bio — 2026-10-31
 
 Added an optional static status pill with a decorative green dot, plain-text label, and theme-controlled colors, shape, and spacing. `statusBadge` defaults to disabled; private configuration can enable it without changing the neutral example. An empty or whitespace-only `bio` omits the paragraph, allowing the pill to sit directly below the name. No new scripts, network requests, or live presence tracking are introduced. Both standalone neutral snapshots were refreshed from the shared renderer.

@@ -2,11 +2,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeFeatures } from './features.mjs';
-import { isHTTPS } from '../src/client/browser-opening.js';
+import { isHTTPS, PLACEHOLDER_URL } from '../src/client/browser-opening.js';
 import { normalizeVerification } from './verification-config.mjs';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
-export const PLACEHOLDER_URL = '/example/more-soon/';
+export { PLACEHOLDER_URL };
 export const escapeHTML = (value) => String(value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[char]));

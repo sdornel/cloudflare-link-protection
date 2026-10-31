@@ -35,7 +35,7 @@ export function initialize(win = window) {
       instructions.textContent = context.platform === 'ios' ? labels.iosInstructions : labels.androidInstructions;
     },
   });
-  const planFor = (url, mode, automatic = false) => openingPlan(url, { ...options.browserOpening, mode }, context, { automatic });
+  const planFor = (url, mode, automatic = false) => openingPlan(url, { ...options.browserOpening, mode }, context, { automatic, pageURL: win.location.href });
   const navigate = (plan, id, trigger) => {
     track('browser_strategy', { link_id: id, strategy: plan.strategy, reason: plan.reason, trigger });
     return controller.attempt(plan, { id, trigger });

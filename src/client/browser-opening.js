@@ -1,5 +1,6 @@
 export const HANDOFF_MARKER = '_lp_handoff';
 export const SESSION_GUARD = 'profile:handoff-attempted';
+export const PLACEHOLDER_URL = '/example/more-soon/';
 
 export function isHTTPS(value) {
   if (typeof value !== 'string' || !/^https:\/\//i.test(value) || /[\s\\\u0000-\u001f\u007f]/u.test(value)) return false;
@@ -21,7 +22,10 @@ export function guardedPageURL(value) {
   return { url: `${main}${separator}${HANDOFF_MARKER}=1${fragment}`, marked: false };
 }
 
-export function openingPlan(target, { mode = 'direct', iosStrategy = 'instagram', androidPackage = 'com.android.chrome' } = {}, context = {}, { automatic = false } = {}) {
+export function openingPlan(target, { mode = 'direct', iosStrategy = 'instagram', androidPackage = 'com.android.chrome' } = {}, context = {}, { automatic = false, pageURL } = {}) {
+  // Only the built-in neutral destination can be relative. Use the current
+  // HTTPS origin, never a query parameter, and leave absolute URL bytes intact.
+  if (target === PLACEHOLDER_URL && isHTTPS(pageURL)) target = new URL(target, pageURL).href;
   const direct = (reason) => ({ strategy: 'direct', target, fallback: target, reason });
   if (!isHTTPS(target)) return direct('invalid_url');
   if (mode !== 'native' || !context.eligible) return direct('ordinary_navigation');

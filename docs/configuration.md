@@ -6,6 +6,8 @@
 
 Both the hosted `/example/` page and standalone example use a generic personal bio, without a demo notice or publishing panel. The hosted buttons all lead to `/example/more-soon/`, a static **More soon** page with a back link. `placeholderLinks` stays enabled and `previewNote` is empty; both pages remain noindex. Publishing instructions are in [Cloudflare setup](cloudflare.md).
 
+The hosted example uses the sample's `native` mode with `autoOpen: true` and `showManual: false`: one experimental automatic iOS same-page attempt, then native destination attempts on eligible button taps, including Android. It resolves the More soon destination on the current HTTPS origin and retains a direct fallback. HTTP localhost and ordinary browsers use normal links. Age acknowledgment and branded verification remain off in the sample; Cloudflare domain rules can still apply. The offline `example.html` has no scripts or browser handoff. See the [neutral handoff checklist](testing.md#hosted-example-handoff-check).
+
 `src/index.html` is the profile template, not a ready-to-open page. The build selects `SITE_CONFIG_JSON` first, then `config/site.json` if it exists, then the neutral `config/site.example.json`. The demo is generated at `example/index.html`; a configured profile uses its `profilePath`. Sample builds and non-root creator builds generate a distinct homepage from `src/landing.html`. Configuration is applied at build time; raw config is never copied to the output.
 
 To create your own page:
@@ -57,7 +59,7 @@ Create `config/site.json` by copying the sample on a fresh clone; do not overwri
 | `styles` | Overrides to the shared `config/theme.json` |
 | `verification` | Optional branded Turnstile gate: enabled flag, session duration, widget theme, copy, and style overrides; runtime credentials stay outside JSON |
 
-Icons are `none`, `arrow`, or `heart`. Destinations require HTTPS except for the exact built-in placeholder `/example/more-soon/`, permitted only when `placeholderLinks` is true. That internal route always uses direct navigation; it does not attempt browser handoff. Other relative paths, query variations, and protocol-relative URLs are rejected. To use a final site, replace placeholder links with HTTPS destinations, set `siteUrl`, and set `placeholderLinks: false`. The production build rejects an unset origin or unfinished placeholders; it cannot verify ownership or availability of destinations.
+Icons are `none`, `arrow`, or `heart`. Destinations require HTTPS except for the exact built-in placeholder `/example/more-soon/`, permitted only when `placeholderLinks` is true. That route follows the configured opening mode; native handoff resolves it against the current HTTPS origin without copying page query parameters. HTTP previews use normal navigation. Other relative paths, query variations, and protocol-relative URLs are rejected. To use a final site, replace placeholder links with HTTPS destinations, set `siteUrl`, and set `placeholderLinks: false`. The production build rejects an unset origin or unfinished placeholders; it cannot verify ownership or availability of destinations.
 
 ## Status pill
 

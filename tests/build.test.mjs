@@ -50,6 +50,13 @@ test('explicit example build ignores private inputs and emits direct functional 
   assert.doesNotMatch(home, /PRIVATE_MARKER|publish-guide/);
   const html = await readFile(path.join(outDir, 'example/index.html'), 'utf8');
   for (const link of [original.primaryLink, ...original.secondaryLinks]) assert.ok(html.includes(`href="${link.url}"`));
+  assert.equal((html.match(/data-opening-mode="inherit"/g) || []).length, 3);
+  const options = JSON.parse(html.match(/<script id="profile-options" type="application\/json">([^<]+)<\/script>/)[1]);
+  assert.equal(options.browserOpening.mode, 'native');
+  assert.equal(options.browserOpening.autoOpen, true);
+  assert.equal(options.browserOpening.showManual, false);
+  assert.equal(options.ageAcknowledgment.enabled, false);
+  assert.doesNotMatch(html, /id="browser-open"|id="age-notice"/);
   assert.match(html, /noindex, follow/);
   assert.doesNotMatch(html, /class="status-badge"/);
   assert.doesNotMatch(html, /id="publish-guide"|Publish with Cloudflare|Software engineer|Demo ·|class="preview-note"/);

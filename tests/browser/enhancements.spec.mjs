@@ -9,7 +9,7 @@ const destination = 'https://example.com/projects?a=1&a=2&encoded=%20#latest';
 
 // Serve a real synthetic build, including its CSP. Only the OS launch boundary
 // is replaced: the production app initializes and handles every click itself.
-async function fixture(page, { platform = 'ios', failLaunch = false, blockedStorage = false, autoOpen = false, showManual = true, age = false, ageScope = 'all', analytics = false, mode = 'native', profilePath = '/' } = {}) {
+async function fixture(page, { platform = 'ios', failLaunch = false, blockedStorage = false, autoOpen = false, showManual = true, age = false, ageScope = 'all', analytics = false, mode = 'native', profilePath = '/', hostedExample = false } = {}) {
   const config = JSON.parse(await readFile(new URL('../../config/site.example.json', import.meta.url), 'utf8'));
   config.siteUrl = origin;
   config.profilePath = profilePath;
@@ -20,7 +20,8 @@ async function fixture(page, { platform = 'ios', failLaunch = false, blockedStor
   if (analytics) config.analytics.ga4MeasurementId = 'G-TEST1234';
   const directory = await mkdtemp(path.join(tmpdir(), 'profile-browser-'));
   try {
-    await build({ config, outDir: directory });
+    // Exercise the checked-in sample unchanged when testing the hosted example.
+    await build(hostedExample ? { exampleBuild: true, env: {}, outDir: directory } : { config, outDir: directory });
     const headerText = await readFile(path.join(directory, '_headers'), 'utf8');
     const headers = Object.fromEntries(headerText.split('\n').filter(line => /^  [A-Z]/.test(line) && !line.includes('Cache-Control')).map(line => {
       const at = line.indexOf(':'); return [line.slice(0, at).trim(), line.slice(at + 1).trim()];
@@ -49,7 +50,7 @@ async function fixture(page, { platform = 'ios', failLaunch = false, blockedStor
       window.addEventListener('profile:analytics', event => window.__events.push(event.detail));
       if (blockedStorage) Object.defineProperty(window, 'sessionStorage', { get() { throw new Error('Storage blocked'); } });
     }, { platform, failLaunch, blockedStorage });
-    await page.goto(`${origin}${profilePath === '/' ? '/' : `${profilePath}/`}?source=test#links`);
+    await page.goto(`${origin}${hostedExample ? '/example/' : profilePath === '/' ? '/' : `${profilePath}/`}?source=test#links`);
     await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
     return async () => { await page.unrouteAll({ behavior: 'wait' }); await rm(directory, { recursive: true, force: true }); };
   } catch (error) {
@@ -57,6 +58,44 @@ async function fixture(page, { platform = 'ios', failLaunch = false, blockedStor
     await rm(directory, { recursive: true, force: true });
     throw error;
   }
+}
+
+for (const platform of ['ios', 'android']) {
+  test(`hosted example uses automatic-only handoff and neutral CTA fallback on ${platform}`, async ({ page }) => {
+    const cleanup = await fixture(page, { hostedExample: true, platform, failLaunch: true });
+    try {
+      await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(platform === 'ios' ? 1 : 0);
+      await expect(page.locator('#browser-open')).toHaveCount(0);
+      await expect(page.locator('#age-notice')).toHaveCount(0);
+      await expect(page.locator('#handoff-panel')).toBeHidden();
+      if (platform === 'ios') {
+        await expect(page).toHaveURL(`${origin}/example/?source=test&_lp_handoff=1#links`);
+        expect(await page.evaluate(() => window.__launches[0])).toMatchObject({ target: page.url(), trigger: 'automatic' });
+        await page.reload();
+        await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+        expect(await page.evaluate(() => window.__launches.length)).toBe(0);
+      } else {
+        await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'handoff_deferred'))).toBe(true);
+      }
+      for (const [index, label] of ['Explore my work', 'Read my notes', 'Get in touch'].entries()) {
+        const cta = page.getByRole('link', { name: label });
+        await expect(cta).toHaveAttribute('href', '/example/more-soon/');
+        await cta.click();
+        await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(index + 1);
+        expect(await page.evaluate(() => window.__launches.at(-1))).toMatchObject({
+          target: `${origin}/example/more-soon/`, fallback: `${origin}/example/more-soon/`,
+          strategy: platform === 'ios' ? 'ios-instagram' : 'android-intent', trigger: 'cta',
+        });
+        await expect(page.locator('#handoff-direct')).toBeVisible();
+        await expect(page.locator('#handoff-direct')).toHaveAttribute('href', `${origin}/example/more-soon/`);
+        await expect(page.locator('#handoff-retry')).toBeHidden();
+        await expect(page.locator('#handoff-instructions')).toBeHidden();
+      }
+      await page.locator('#handoff-direct').click();
+      await expect(page).toHaveURL(`${origin}/example/more-soon/`);
+      await expect(page.getByRole('heading', { name: 'More soon' })).toBeVisible();
+    } finally { await cleanup(); }
+  });
 }
 
 test('CTA launch error offers the exact direct link and explicit retry/dismiss', async ({ page }) => {

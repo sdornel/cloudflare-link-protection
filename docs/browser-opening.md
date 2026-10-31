@@ -29,7 +29,9 @@ On Android, keep `androidPackage: "com.android.chrome"` to request Chrome explic
 
 ## Automatic opening and loops
 
-`autoOpen: true` opts into one experimental iOS entry attempt to open the **same landing page**, after rendering. It never automatically selects a CTA destination. Android reports a deferred attempt and waits for a tap. Defaults keep this option off.
+`autoOpen: true` opts into one experimental iOS entry attempt to open the **same landing page**, after rendering. It never automatically selects a CTA destination. Android reports a deferred attempt and waits for a tap. Omitted options keep automatic opening off; the public sample explicitly enables it and hides manual browser offers.
+
+The hosted `/example/` uses that sample configuration and the same handoff modules as creator profiles. Its buttons retain `/example/more-soon/` as their real `href`; native attempts on HTTPS resolve that exact built-in path against the current origin. The direct fallback targets the same resolved URL. No creator destination, private configuration, or query-string destination is involved. Ordinary browsers and HTTP previews navigate normally. The standalone `example.html` stays script-free. See the [hosted example checklist](testing.md#hosted-example-handoff-check).
 
 For an existing deployment, merge into the ignored `config/site.json`:
 

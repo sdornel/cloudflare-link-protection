@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { browserContext } from '../src/client/browser-context.js';
-import { guardedPageURL, isHTTPS, isPlainActivation, openingPlan } from '../src/client/browser-opening.js';
+import { guardedPageURL, isHTTPS, isPlainActivation, openingPlan, PLACEHOLDER_URL } from '../src/client/browser-opening.js';
 import { createHandoffController } from '../src/client/handoff-controller.js';
 const ios = browserContext({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Instagram 300' });
 const android = browserContext({ userAgent: 'Mozilla/5.0 (Linux; Android 14) Instagram 300' });
@@ -17,11 +17,42 @@ test('only recognized mobile in-app contexts get native handling', () => {
 
 test('nested iOS URL preserves query bytes, Unicode, repeated keys and fragment exactly', () => {
   const target = 'https://example.com/é?a=1&a=2&space=%20&plus=+&nested=https%3A%2F%2Fexample.org%2F%3Fa%3Db#section';
-  const plan = openingPlan(target, { mode: 'native' }, ios);
+  const plan = openingPlan(target, { mode: 'native' }, ios, { pageURL: 'https://profile.example/example/' });
   assert.equal(decodeURIComponent(plan.uri.split('?url=')[1]), target);
   assert.equal(plan.fallback, target);
   assert.equal(openingPlan(target, { mode: 'native', iosStrategy: 'safari' }, ios).uri, target.replace('https:', 'x-safari-https:'));
   assert.equal(openingPlan(target, { mode: 'direct' }, ios).strategy, 'direct');
+});
+
+test('neutral destination uses the current HTTPS origin for native handoff and fallback', () => {
+  const pageURL = 'https://profile.example/example/?next=https%3A%2F%2Fother.example&source=ig#links';
+  const expected = 'https://profile.example/example/more-soon/';
+  for (const context of [ios, android]) {
+    const plan = openingPlan(PLACEHOLDER_URL, { mode: 'native' }, context, { pageURL });
+    assert.equal(plan.target, expected);
+    assert.equal(plan.fallback, expected);
+    if (context.platform === 'ios') {
+      assert.equal(plan.strategy, 'ios-instagram');
+      assert.equal(decodeURIComponent(plan.uri.split('?url=')[1]), expected);
+    } else {
+      assert.equal(plan.strategy, 'android-intent');
+      assert.equal(decodeURIComponent(plan.uri.match(/S.browser_fallback_url=([^;]+);end$/)[1]), expected);
+    }
+  }
+  assert.equal(openingPlan(PLACEHOLDER_URL, { mode: 'native' }, android, { pageURL, automatic: true }).reason, 'gesture_required');
+  assert.equal(openingPlan(PLACEHOLDER_URL, { mode: 'direct' }, ios, { pageURL }).strategy, 'direct');
+  assert.equal(openingPlan(PLACEHOLDER_URL, { mode: 'native' }, { eligible: false }, { pageURL }).strategy, 'direct');
+});
+
+test('neutral resolution excludes HTTP, files, other relative paths and destination parameters', () => {
+  for (const pageURL of [undefined, 'http://localhost:4173/example/', 'file:///tmp/example.html', 'invalid', 'https://user:password@profile.example/']) {
+    const plan = openingPlan(PLACEHOLDER_URL, { mode: 'native' }, ios, { pageURL });
+    assert.equal(plan.strategy, 'direct');
+    assert.equal(plan.target, PLACEHOLDER_URL);
+  }
+  for (const target of ['//other.example/', '/other/', `${PLACEHOLDER_URL}?next=https://other.example/`, `${PLACEHOLDER_URL}#links`, './more-soon.html']) {
+    assert.equal(openingPlan(target, { mode: 'native' }, ios, { pageURL: 'https://profile.example/example/' }).strategy, 'direct');
+  }
 });
 
 test('Facebook detection enables mobile assistance without invoking Instagram from Facebook', () => {

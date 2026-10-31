@@ -110,7 +110,7 @@ test('preview routes slashless entry with intact queries, serves the page and as
   assert.equal(buttons.length, 3);
   for (const [, href, mode] of buttons) {
     assert.equal(href, '/example/more-soon/');
-    assert.equal(mode, 'direct');
+    assert.equal(mode, 'inherit');
     const destination = await request(handler, href);
     assert.equal(destination.statusCode, 200);
     assert.match(destination.body, /<h1>More soon<\/h1>/);

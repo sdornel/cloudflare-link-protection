@@ -61,6 +61,18 @@ npm run screenshots
 
 This builds and serves the neutral sample in an isolated temporary directory, then captures `/example/` in `docs/images/demo-mobile.png` and `docs/images/demo-desktop.png`. It cannot select private configuration or browse a production hostname. Inspect both images before committing them. The reviewed captures are embedded in README. The CI browser job also uploads neutral screenshot/test evidence when it can run. No screenshots are fabricated when the browser is unavailable.
 
+## Hosted example handoff check
+
+Deploy the updated build, then use `/example/` on your own HTTPS origin. Its sample settings enable native mode and automatic opening while hiding the manual browser button. All destinations remain the neutral More soon page; no private configuration update is needed for this demo change. Age acknowledgment and the branded gate stay disabled, so this check does not exercise those features. Domain-level Cloudflare challenges may still precede the page.
+
+1. Start a fresh Instagram/Facebook in-app browsing session at `/example/` without a `_lp_handoff` marker. An earlier visit in the same session can suppress another automatic attempt by design.
+2. On iOS, observe whether the same example page opens externally, prompts, or stays in the app. Refreshing or returning must not create repeated automatic launches. Record the actual browser; an attempt alone is not proof of success.
+3. On Android, expect no launch on arrival. Tap a sample button: the app attempts to open the same-origin `/example/more-soon/` in Chrome. If still inside Instagram on iOS, a button tap also attempts native handoff.
+4. If a button handoff fails, confirm that Continue here reaches More soon. There should be no Open in Browser button or browser retry/instruction offer. More soon must not attempt another handoff.
+5. Check all three links in normal Safari/Chrome and with JavaScript disabled. They should navigate directly to More soon. HTTP localhost and offline snapshots cannot test native opening.
+
+Automated checks cover HTTPS resolution of the exact built-in path, unchanged absolute URLs, rejected alternative relative URLs, sample feature flags, and conservative omitted defaults. Browser fixtures exercise the hosted sample's real app code with simulated iOS/Android contexts and only the OS launch boundary replaced; physical devices remain necessary for compatibility evidence.
+
 ## Real-device checklist
 
 Record device model, OS, app/browser version, date, config, and expected/observed behavior:

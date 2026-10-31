@@ -68,8 +68,8 @@
   "schemaVersion": 2,
   "browserOpening": {
     "mode": "native",
-    "autoOpen": false,
-    "showManual": true,
+    "autoOpen": true,
+    "showManual": false,
     "iosStrategy": "instagram",
     "androidPackage": "com.android.chrome",
     "fallbackDelayMs": 1800

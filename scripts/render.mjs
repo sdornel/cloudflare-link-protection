@@ -13,7 +13,7 @@ function renderLink(link, primary = false, placeholderHref = PLACEHOLDER_URL) {
   const icon = icons[link.icon] ? `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${icons[link.icon]}</svg>` : '';
   const placeholder = link.url === PLACEHOLDER_URL;
   const href = placeholder ? placeholderHref : link.url;
-  return `<a class="link${primary ? ' link-primary' : ''}" href="${escapeHTML(href)}" data-link-id="${escapeHTML(link.id)}" data-opening-mode="${placeholder ? 'direct' : escapeHTML(link.openingMode)}" title="${placeholder ? 'More soon' : escapeHTML(new URL(link.url).hostname)}"><span>${escapeHTML(link.label)}</span>${icon}</a>`;
+  return `<a class="link${primary ? ' link-primary' : ''}" href="${escapeHTML(href)}" data-link-id="${escapeHTML(link.id)}" data-opening-mode="${escapeHTML(link.openingMode)}" title="${placeholder ? 'More soon' : escapeHTML(new URL(link.url).hostname)}"><span>${escapeHTML(link.label)}</span>${icon}</a>`;
 }
 
 export function renderPage({ config, template, profile, share, assetVersion, clientVersion, enhanced = false, showSetupGuide = false, placeholderHref = PLACEHOLDER_URL }) {

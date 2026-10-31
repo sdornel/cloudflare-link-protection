@@ -20,6 +20,8 @@ The example keeps its visitor-facing copy generic and its footer minimal. Deploy
 
 All three example buttons open a local **More soon** page with a link back. The standalone `example.html` shares the production renderer and embeds its stylesheet; keep its generated `more-soon.html` companion beside it for offline navigation. Refresh both with `npm run example:refresh`; normal builds leave them untouched. The browser captures below use the served neutral build. The [Cloudflare guide](docs/cloudflare.md#public-demo-project) explains how to deploy your own Worker.
 
+On HTTPS, the hosted `/example/` also exercises automatic iOS browser handoff and tap-triggered iOS/Android handoff to **More soon**, with direct fallbacks and no manual browser-opening offer. Its content stays neutral; age acknowledgment and branded verification are disabled. HTTP localhost and the script-free standalone preview retain ordinary navigation. Use the [device checklist](docs/testing.md#hosted-example-handoff-check) to test the hosted flow.
+
 ## Screenshots
 
 These captures predate the generic bio and the removal of the demo notice and publishing panel.
@@ -36,7 +38,7 @@ These captures predate the generic bio and the removal of the demo notice and pu
 - Content and complete page styling in JSON, with per-deployment theme overrides.
 - A configurable platform landing at `/`, the neutral demo at `/example/`, and an optional creator path such as `/sample-creator`, on the same Worker.
 - Native iOS scheme and Android intent strategies for Instagram/Facebook, manual Open in Browser on the profile and branded verification page, direct fallbacks, and loop guards.
-- Optional experimental automatic iOS page handoff, off by default; Android defers to a tap.
+- Optional experimental automatic iOS page handoff, enabled in the hosted sample and off when the option is omitted; Android defers to a tap.
 - Optional 18+ acknowledgment for all links or a confirmation dialog on the primary CTA, remembered for the tab session. Copy and styling are configurable. Cloudflare visit/performance analytics and optional GA4 interaction events.
 - Optional branded Turnstile verification, enforced by the Worker with signed sessions; configuration controls copy and styling. Disabled until configured. [Activation guide](docs/verification.md).
 - Safe config serialization, security headers, selective image copying, and public-source checks.

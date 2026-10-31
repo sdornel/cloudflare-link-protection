@@ -14,6 +14,8 @@ test('legacy features default to direct and public options use an explicit allow
   config.analytics.internalNote = 'PRIVATE_MARKER';
   const value = normalizeFeatures(config);
   assert.equal(value.browserOpening.mode, 'direct'); assert.equal(value.ageAcknowledgment.enabled, false);
+  assert.equal(value.browserOpening.autoOpen, false);
+  assert.equal(value.browserOpening.showManual, true);
   assert.deepEqual(value.statusBadge, { enabled: false, label: 'Online' });
   assert.ok(!Object.hasOwn(publicOptions(value), 'statusBadge'));
   assert.doesNotMatch(JSON.stringify(publicOptions(value)), /PRIVATE_MARKER|cloudflareToken/);
