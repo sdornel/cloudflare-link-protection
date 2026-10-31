@@ -10,6 +10,7 @@
     <link rel="icon" href="{{FAVICON}}" type="image/svg+xml">
     <link rel="stylesheet" href="/_verification/styles.css?v={{VERSION}}">
     <script src="/_verification/client.js?v={{VERSION}}" defer></script>
+    {{BROWSER_CLIENT}}
   </head>
   <body>
     <main class="page verification-page">
@@ -17,6 +18,7 @@
       <p class="verification-brand">{{NAME}}</p>
       <h1>{{HEADING}}</h1>
       <p class="bio">{{DESCRIPTION}}</p>
+      {{BROWSER_ASSISTANCE}}
       <section class="verification-card" aria-label="Security verification">
         <form id="verification-form" action="/_verification/verify" method="post"
           data-sitekey="{{VERIFICATION_SITE_KEY}}" data-flow="{{VERIFICATION_FLOW}}"

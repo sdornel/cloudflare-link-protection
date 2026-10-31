@@ -186,6 +186,50 @@
       "font-size": "14px",
       "line-height": "1.6"
     },
+    ".age-dialog": {
+      "display": "none",
+      "width": "min(420px, calc(100% - 32px))",
+      "max-height": "calc(100% - 32px)",
+      "overflow-y": "auto",
+      "margin": "auto",
+      "padding": "28px",
+      "border": "1px solid var(--border)",
+      "border-radius": "24px",
+      "background": "var(--link-background)",
+      "color": "var(--text)",
+      "text-align": "center",
+      "box-shadow": "0 20px 70px rgb(0 0 0 / 0.2)"
+    },
+    ".age-dialog[open]": {
+      "display": "block"
+    },
+    ".age-dialog[data-inline]": {
+      "position": "static",
+      "margin": "18px auto"
+    },
+    ".age-dialog::backdrop": {
+      "background": "rgb(25 18 25 / 0.55)"
+    },
+    ".age-dialog h2": {
+      "margin": "0 0 12px",
+      "font-size": "26px"
+    },
+    ".age-dialog p": {
+      "margin": "0 0 24px",
+      "line-height": "1.6"
+    },
+    ".age-dialog .status": {
+      "display": "none"
+    },
+    ".age-actions": {
+      "display": "grid",
+      "gap": "12px"
+    },
+    ".age-actions .link": {
+      "width": "100%",
+      "font-size": "16px",
+      "cursor": "pointer"
+    },
     ".notice p": {
       "margin": "0 0 10px"
     },

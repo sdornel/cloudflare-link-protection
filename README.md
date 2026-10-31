@@ -2,7 +2,7 @@
 
 A lightweight, self-hosted links page with native, best-effort external-browser opening. One public repository can power a neutral portfolio demo and separately configured production sites on Cloudflare Workers Static Assets.
 
-The landing page renders as ordinary HTML. Its buttons keep their actual destinations when scripts, analytics, or a browser handoff fail. Experimental mobile strategies enhance supported Instagram visits; normal browsers keep normal navigation.
+The landing page renders as ordinary HTML. Its buttons keep their actual destinations when scripts, analytics, or a browser handoff fail. Experimental mobile strategies assist recognized Instagram and Facebook visits; normal browsers keep normal navigation.
 
 ## Try it
 
@@ -35,11 +35,12 @@ These captures predate the generic bio and the removal of the demo notice and pu
 - Responsive profile, initials or portrait, prominent primary CTA, ordered secondary links, SEO metadata, and real 404 page.
 - Content and complete page styling in JSON, with per-deployment theme overrides.
 - A configurable platform landing at `/`, the neutral demo at `/example/`, and an optional creator path such as `/sample-creator`, on the same Worker.
-- Native iOS scheme and Android intent strategies, manual Open in Browser, direct fallbacks, and loop guards.
+- Native iOS scheme and Android intent strategies for Instagram/Facebook, manual Open in Browser on the profile and branded verification page, direct fallbacks, and loop guards.
 - Optional experimental automatic iOS page handoff, off by default; Android defers to a tap.
-- Optional 18+ acknowledgment, Cloudflare visit/performance analytics, and GA4 interaction events.
+- Optional 18+ acknowledgment for all links or a confirmation dialog on the primary CTA, remembered for the tab session. Copy and styling are configurable. Cloudflare visit/performance analytics and optional GA4 interaction events.
 - Optional branded Turnstile verification, enforced by the Worker with signed sessions; configuration controls copy and styling. Disabled until configured. [Activation guide](docs/verification.md).
 - Safe config serialization, security headers, selective image copying, and public-source checks.
+- Configurable origin-wide `robots.txt` policy: set `robots.allowCrawling: false` to request no crawling, emit noindex profile metadata, and omit the sitemap. See [crawl preferences](docs/configuration.md#crawl-preferences).
 - Unit/integration tests, a development-only Playwright suite, and neutral-input CI.
 
 There are two opening modes: **`direct`** and **`native`**. A third-party service URL can simply be a normal destination. There is no dedicated Bouncy integration or required service account. Native handoff is experimental and still needs real-device verification; see the [compatibility matrix](docs/browser-opening.md).
@@ -112,6 +113,8 @@ npm test
 npm run build:example
 npm run check:public
 ```
+
+To observe what a fresh crawler receives from your own configured profile, run `npm run check:crawl` for a bounded HTTP check, or `npm run check:crawl:browser` for a JavaScript-capable Chromium check with a private report and screenshot. The browser command uses the existing Playwright dependency (`npm ci`, then `npx playwright install chromium`). Neither clicks challenges or outbound links, changes Cloudflare settings, or requires a new deployment. See [controlled crawler checks](docs/crawler-check.md) for limits and interpretation.
 
 For browser integration tests only:
 

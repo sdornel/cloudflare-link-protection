@@ -19,6 +19,8 @@ The Git fixture test may explicitly skip outside CI when Git cannot be spawned. 
 
 ## Workers deployment check
 
+For a live observation of an owned deployment, use `npm run check:crawl` for HTTP without JavaScript or `npm run check:crawl:browser` for fresh Chromium with JavaScript and temporary cookies. The latter observes automatic page behavior without clicking challenges or outbound links, and saves a private screenshot plus sanitized report. Both have traffic/time limits and stay separate from live CI. Node tests cover policy/classification/redaction; `tests/browser/crawl-check.spec.mjs` tests the actual runner with local fixtures and no production requests. See [controlled crawler checks](crawler-check.md) for commands, redirect/budget limitations and interpretation.
+
 After `npm ci`, run `npm run check:workers` to build the neutral sample and validate its Wrangler deployment without publishing. Use `npx wrangler dev --local` to inspect Cloudflare static routing, security headers, and real 404 responses locally. Live HTTPS, DNS, and zone rules still need a deployed site.
 
 ## Branded verification checks
@@ -26,6 +28,18 @@ After `npm ci`, run `npm run check:workers` to build the neutral sample and vali
 `tests/verification.test.mjs` builds synthetic profiles and exercises the real Worker with mocked assets/Siteverify. It checks protected document aliases, private metadata, safe return URLs, token replay and action/hostname/nonce binding, signed cookie tampering/expiry/rotation, origin checks, body limits, provider outages, headers, and disabled-feature compatibility. Gated Pages builds and the plain static preview must refuse unenforced output. `tests/verification-client.test.mjs` covers the widget's loading/error/expiry/retry states, one submission, exact address preservation, and compact sizing. These tests require no Cloudflare account or keys.
 
 The Chromium/WebKit verification fixture uses the real gate, client, and Worker with a synthetic widget/provider. It checks form navigation, secure session cookies, query/fragment preservation, direct HTML protection, narrow layout, blocked scripts, and disabled JavaScript. This does not prove live Turnstile or Instagram compatibility. The [activation and device checklist](verification.md#local-verification-and-live-checklist) covers staging and real-device evidence. The deployable Worker rejects official dummy credentials; there is no production verification bypass for tests.
+
+## Primary CTA age acknowledgment
+
+Use a synthetic configuration with `ageAcknowledgment: { enabled: true, scope: "primary", remember: "session" }`. Node tests cover scoping, cancellation, session/path/link isolation, reload aliases, unavailable storage, inline fallback, validation, escaped copy, and preservation of verification-gate handoff. The browser feature suite exercises actual dialog focus/Escape, primary confirmation, direct/native destinations, secondary links, and reload behavior.
+
+On a real device, check:
+
+- Arrival shows the normal links page. Secondary links work without an age prompt. The first primary click opens the themed dialog; the destination has not opened yet.
+- Go back and Escape dismiss it without recording acceptance. Focus returns to the CTA. Confirm opens the original destination once, preserving query parameters.
+- Return to the same tab and refresh: the next primary click proceeds without a prompt. A genuinely fresh tab session or separate browser asks again; restored/copied browser sessions can retain acknowledgment.
+- Storage-disabled mode remembers acknowledgment for the current document only. With JavaScript disabled, the notice and direct links remain available.
+- At 320px and 200% zoom, the dialog and both actions remain reachable. Keyboard focus stays inside a native modal until dismissed. Check the configured colors and labels, not only the public theme.
 
 ## Browser integration
 
@@ -51,7 +65,8 @@ This builds and serves the neutral sample in an isolated temporary directory, th
 
 Record device model, OS, app/browser version, date, config, and expected/observed behavior:
 
-- Open the custom-domain page through a real Instagram bio/story on iOS and Android; confirm the complete landing page is accessible.
+- Open the custom-domain page through real Instagram and Facebook links on iOS and Android; verify browser assistance on both the branded gate and profile. Record whether an earlier Cloudflare edge challenge delays assistance.
+- Test automatic entry, a manual Open in Browser tap, failed verification POST recovery, and retry/return loop guards. Verify the actual browser that opens; include Chrome missing and a different default browser. A UA fixture cannot establish these device results.
 - For a configured profile path, visit both `/sample-creator` and `/sample-creator/` with query parameters; verify the creator page, portrait, stylesheet, and modules load. Check the root shows the landing, its demo button opens `/example/`, and unknown paths return 404. Repeat after a direct reload and without JavaScript.
 - Exercise direct/native modes, per-link overrides, manual Open in Browser, and automatic mode separately. Confirm ordinary Safari/Chrome visitors see no handoff prompt.
 - Accept and cancel app prompts; remove/disable the target browser where possible; try another default browser and repeated taps.

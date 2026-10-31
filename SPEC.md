@@ -95,6 +95,14 @@ Compile and validate all pages before replacing build output. Root-level securit
 
 Acceptance: old root configs still work; root, demo, and nested profile serve their distinct content and styles; the landing CTA opens the functional neutral demo with or without JavaScript; `/example` cannot be overwritten by a creator; slash normalization preserves queries; images/scripts/SEO resolve correctly; invalid paths or landing settings fail before replacing output; unknown paths return 404; private identities remain absent from public source and the demo. Creator settings never leak into the landing, and explicit landing overrides never leak into the creator. Document configuration, local preview, and deployment.
 
+### Crawl preferences
+
+Every build generates `/robots.txt`. Optional deployment configuration `robots.allowCrawling` defaults to `true`, preserving the permissive public example and existing deployments. Setting it to `false` emits `User-agent: *` with `Disallow: /` for the entire origin, including the landing and example, keeps the configured profile noindex even when otherwise production-ready, and omits the sitemap. Validate the object and boolean before replacing output. Do not create crawler-specific content, redirects, or exceptions.
+
+The verification Worker must serve this file without a verification session, including when protecting a root profile. Cloudflare edge challenges run first and can still prevent access; document checking for a plain-text HTTP 200 at `/robots.txt` and excluding this exact path from operator-created challenge rules if necessary, for every visitor. Robots instructions are voluntary crawler preferences, not access control or a guarantee against Meta review or indexing. Crawlers denied access may never see a page's noindex directive. Keep security enforcement separate.
+
+Acceptance: omitted/true settings retain permissive output and existing sitemap behavior; false settings suppress crawling requests, indexing metadata, and sitemap generation for root and nested profiles; invalid values fail without exposing private input; the Worker serves the same robots file anonymously regardless of user agent. Explicit example builds ignore private crawl settings.
+
 ## 3. Architecture and repository layout
 
 Use progressive enhancement: the HTML document is a complete links page before visitor JavaScript runs. The browser-opening module decides how to attempt a navigation; it does not own profile rendering or invent destinations.
@@ -216,14 +224,16 @@ An omitted feature block preserves the previous direct-link behavior. New exampl
 | `schemaVersion` | Optional `1` for legacy; `2` for the expanded schema | Reject unsupported explicit versions; document migration |
 | `browserOpening.mode` | `direct` or `native`; omitted block means `direct` | Global behavior; native handoff is opt-in |
 | `browserOpening.autoOpen` | Boolean, default `false` | Native mode only: allow a bounded experimental attempt to open this landing page externally |
-| `browserOpening.showManual` | Boolean, default `true` in native mode | Offer an unobtrusive Open in Browser control in supported in-app contexts |
-| `browserOpening.iosStrategy` | `instagram` or `safari`; default `instagram` | Select one experimental iOS strategy; no automatic cascade |
-| `browserOpening.androidPackage` | Default `com.android.chrome` | Validated package name for an external browser; document absence/chooser behavior |
+| `browserOpening.showManual` | Boolean, default `true` in native mode | Offer browser controls; `false` omits the open button, suppresses same-page handoff assistance and hides browser retries/instructions on CTA fallback |
+| `browserOpening.iosStrategy` | `instagram`, `safari`, or `chrome`; default `instagram` | One strategy; Facebook maps `instagram` to the Safari attempt; no automatic cascade |
+| `browserOpening.androidPackage` | Default `com.android.chrome`; also `default` | Validated package name, or omit it for OS resolution; document absence/chooser behavior |
 | `browserOpening.fallbackDelayMs` | Integer 800–5000; default `1800` | Time before showing unconfirmed-attempt assistance; never a success threshold |
 | `browserOpening.labels` | Optional plain-text labels with built-in defaults | Manual open, retry, continue here, and device instructions |
 | Link `id` | Optional unique `[a-z0-9_-]`, 1–40 characters | Stable non-sensitive event identifier; deterministic positional ID if absent |
 | Link `openingMode` | `inherit`, `direct`, `native`; default `inherit` | Per-destination strategy override |
 | `ageAcknowledgment.enabled` | Boolean, default `false` | Optional 18+ self-attestation |
+| `ageAcknowledgment.scope` | `all` or `primary`; default `all` | Preserve the existing all-link notice, or show a confirmation dialog only when the primary CTA is activated |
+| `ageAcknowledgment.title`, `acceptLabel`, `cancelLabel` | Nonempty plain text, at most 500 characters | Configurable dialog heading and actions |
 | `ageAcknowledgment.message` | Plain text with a neutral default | Visible explanation |
 | `ageAcknowledgment.remember` | `session` or `none`; default `session` | Store only the acknowledgment state, if storage works |
 | `analytics.ga4MeasurementId` | Empty by default; validated `G-…` identifier | Optional event reporting; public identifier, not a secret |
@@ -288,7 +298,7 @@ Document which optional providers receive visitor requests, what telemetry is en
 
 - Actual content, destinations, and metadata remain identical for visitors and reviewers. Detection changes navigation assistance only.
 - Original anchors always contain the actual configured HTTPS destination. With JavaScript unavailable or broken, normal navigation works.
-- Handoff occurs only in a recognized Instagram mobile context and only when enabled for the relevant operation. Normal browsers, desktops, unknown in-app browsers, and uncertain classifications use normal links.
+- Handoff occurs only in a recognized Instagram or Facebook mobile context and only when enabled for the relevant operation. Normal browsers, desktops, unknown in-app browsers, and uncertain classifications use normal links.
 - User-agent detection is a heuristic, not security, authentication, or proof of an app version. Do not use bot lists, referrer allowlists, or fingerprinting as substitutes.
 - Do not intercept modified clicks, middle-click, download behavior, context menus, or open-in-new-tab gestures.
 - If strategy construction or initialization fails, leave the link's default navigation intact.
@@ -311,11 +321,19 @@ Android intent syntax, fallback extras, and user-activation restrictions are doc
 
 ### 5.3 Automatic versus user-initiated handoff
 
+Recognize Instagram and Facebook mobile in-app browser markers (Facebook's FBAN/FBAV tokens); detection remains navigation assistance only. Facebook on iOS must never invoke Instagram's scheme: when the configured `iosStrategy` is `instagram`, use the existing experimental Safari strategy for Facebook. Add an explicit `chrome` iOS strategy using `googlechromes:`; it requires Chrome to be installed and does not claim to select the default browser. Allow `androidPackage: default` to omit the package and request OS resolution, which may show a chooser or still be handled by the app. Retain the existing Chrome package default and conservative query/fragment handling. No browser/OS combination guarantees an automatic escape.
+
+Native-mode verification pages support same-page Open in Browser assistance before Turnstile completes when `showManual` is true, using shared strategy/controller code and configurable labels. The control must target the original validated profile URL, including after a failed verification POST, never the POST endpoint or an address-bar destination. Do not embed creator destinations, analytics settings or credentials in assistance options. A one-time automatic attempt may run on the initial gate when `autoOpen` is enabled and age acknowledgment is disabled or has `scope: primary`; on verification error/POST pages provide manual assistance only when enabled. Share the existing loop guard with the profile page. Opening externally does not transfer cookies, grant access, or acknowledge age; verification may run again in the external browser.
+
+An edge Cloudflare Challenge Page precedes all application HTML/JavaScript. Handoff assistance cannot execute until that challenge permits the request. Document this ordering and the operational trade-off; do not silently disable edge security or add user-agent-based challenge exemptions.
+
 **Automatic entry handoff:** in native mode when `autoOpen` is true, attempt to open the **same landing page** externally, never jump straight to its primary destination. Render the page first. Restrict this experiment to supported iOS strategy/context combinations; a dynamically created one-shot meta refresh may be used for the Instagram strategy, with a bounded removal/cleanup path. No unconditional refresh tag is allowed in generated HTML.
 
-Automatic attempts require a visible top-level document, valid HTTPS page URL, no prior-attempt guard, and any configured age acknowledgment. Do not attempt during prerendering, hidden state, restored back/forward state, or inside an iframe. Android page-load attempts must defer to a tap because they do not satisfy the documented activation requirement. Record that deferral without claiming failure or success.
+Automatic attempts require a visible top-level document, valid HTTPS page URL, no prior-attempt guard, and any configured all-scope age acknowledgment. Primary-only acknowledgment applies to the CTA destination, not reopening this same page. Do not attempt during prerendering, hidden state, restored back/forward state, or inside an iframe. Android page-load attempts must defer to a tap because they do not satisfy the documented activation requirement. Record that deferral without claiming failure or success.
 
 **Manual page handoff:** an Open in Browser control attempts the current landing page URL. Show concise platform instructions if the scheme is ignored. The user may dismiss the assistance and continue browsing the landing page.
+
+**Automatic page opening without an offer:** the operator may set `autoOpen: true` and `showManual: false`. Omit the browser-open button from generated HTML; suppress same-page handoff prompts/retry panels on both the profile and gate, including failed attempts and returning visits. Keep normal page content and verification usable when no automatic launch can occur. For an explicit CTA tap, retain the exact direct fallback link without browser retry controls or browser-opening instructions. Do not synthesize user gestures or remove Android's activation requirement. This configuration requests automatic opening where supported; it does not force a browser switch or establish Meta policy approval.
 
 **CTA handoff:** a normal unmodified tap on a native-enabled link may attempt that exact destination in an external browser. Keep an explicit direct Continue here link available in the fallback panel. A direct per-link override must bypass native handling entirely.
 
@@ -363,6 +381,10 @@ Accessibility targets: semantic headings/navigation, visible keyboard focus, usa
 Age acknowledgment is an optional **self-attestation**, not identity verification, access control, or a guarantee of regulatory compliance. Use a small visible 18+ notice and deliberate acknowledgment; do not collect birth dates or identity documents. The same content and notice are delivered to all visitors.
 
 When enabled and JavaScript works, defer enhanced outbound actions until acknowledgment; after the acknowledgment tap, continue the user's intended action at most once. Remember only a boolean in session storage when configured. Handle unavailable storage. A new external browser has separate storage and may ask again. Do not encode acknowledgment in a URL. With JavaScript disabled, show the notice and preserve ordinary links; document that this is not a mandatory age-verification system.
+
+With `scope: primary`, show a themed, accessible dialog only on the first ordinary activation of the primary CTA, including keyboard activation. Confirmation stores the acknowledgment before synchronously resuming that exact destination, including its query/fragment and configured browser-opening strategy. Cancel or Escape stays on the links page, stores nothing, and returns focus to the initiating control. Later activations in the same tab session bypass the dialog, including after reload or navigating back. Namespace this session flag by profile path and primary link ID so another creator does not inherit acknowledgment. If storage is unavailable, remember it only for the current document. `remember: none` retains that document-only behavior.
+
+Secondary links and same-page browser handoffs do not require acknowledgment in primary scope, including automatic opening at the branded verification gate. Keep all-scope behavior and its automatic-opening deferral backward compatible. Preserve direct hrefs and modified-click behavior; JavaScript failure, disabled scripts, or opening a link through the browser's own menu can bypass this client-side self-attestation. Render a readable no-script notice. Configure all dialog appearance through the existing theme system. Public samples keep acknowledgment disabled; private deployment configuration enables primary/session scope. Tests cover cancellation, single navigation, session reuse and isolation, blocked storage, secondary links, browser handoff ordering, escaped copy, and legacy all-scope behavior.
 
 ### Example policy
 
@@ -483,8 +505,8 @@ Implement an optional verification page using the existing profile branding, a s
 - Require runtime `TURNSTILE_SITE_KEY` (public), `TURNSTILE_SECRET_KEY`, and an independent random `VERIFICATION_SESSION_SECRET` of at least 32 characters when enabled. Secrets never enter build JSON, assets, Git, logs, or responses. Missing required runtime settings return an unavailable response for protected documents; they must not expose profile HTML.
 - For unverified profile document requests, return the branded page at the requested URL. Validate the Turnstile token server-side through Siteverify, checking success, hostname, action, and a nonce bound to a short-lived signed challenge cookie. Enforce same-origin submissions, HTTPS, bounded request bodies, and safe same-profile return paths. Preserve queries and fragments through verification without allowing external redirects. Expired, rejected, replayed, or unavailable verification must not grant a session.
 - Use HMAC-signed, expiring, host-only Secure/HttpOnly/SameSite=Lax cookies, bound to the origin and configured profile path. A valid session grants the same profile content to any visitor who presents it. Never use user-agent/referrer-based content selection. Run checks before serving HTML, including direct `/index.html` and directory aliases; reject ambiguous encoded paths. Only explicitly identified assets and the neutral demo remain public. Prevent shared caching of verification and protected HTML responses. Support HEAD without returning a body.
-- The verification POST and public verification JS/CSS live under reserved `/_verification/`; all other files under that namespace are inaccessible to visitors. Serve protected responses with the site's security headers; permit only the needed Turnstile script/frame/connect origins on the gate and retain strict CSP elsewhere. Keep the profile's ordinary links and browser opening unchanged after verification.
-- Configure Cloudflare so the branded page and submission can load before any broad Managed Challenge. The application session is distinct from Cloudflare's `cf_clearance`. Retain background managed/DDoS protections; document failure investigation and rolling back with `verification.enabled: false` plus rebuild. Static-only hosting cannot enforce this gate. Worker requests now consume Workers quotas; do not claim unlimited free dynamic requests.
+- The verification POST and public verification JS/CSS live under reserved `/_verification/`; all other files under that namespace are inaccessible to visitors. Serve protected responses with the site's security headers; permit only the needed Turnstile script/frame/connect origins on the gate and retain strict CSP elsewhere. Use `Referrer-Policy: same-origin` on the gate so its navigation POST preserves the `Origin` header while external requests receive no referrer. Reject missing, null, and foreign submission origins; test browser-generated request headers as well as Worker fixtures. Keep the profile's ordinary links and browser opening unchanged after verification.
+- By default, configure Cloudflare so the branded page and submission can load before any broad Managed Challenge. An operator may intentionally retain an additional edge challenge and accept two checks; do not treat that choice as proof of stronger crawler exclusion or Meta policy compliance. The application session is distinct from Cloudflare's `cf_clearance`. Retain background managed/DDoS protections; document failure investigation and rolling back with `verification.enabled: false` plus rebuild. Static-only hosting cannot enforce this gate. Worker requests now consume Workers quotas; do not claim unlimited free dynamic requests.
 - Test config validation, neutral isolation, styling, direct-asset bypass attempts, signatures/tampering/expiry, cross-origin submissions, unsafe return URLs, nonce/action/hostname mismatch, Siteverify failures, cookie reuse, body limits, cache/security headers, and unchanged disabled behavior. Use mocked verification for automated tests; never claim it establishes physical Instagram or live challenge compatibility. The deployed Worker rejects official dummy keys. Provide dashboard activation and isolated test-key experimentation instructions, with verification disabled until runtime credentials are provisioned. The static preview and gated Pages builds must refuse to serve/publish an unenforced gate.
 
 This extends the earlier static-only release; multiple configured profiles in one build remain planned separately. Current deployment credentials, activation, and real-device results are operator tasks and must be reported separately from implementation tests.
@@ -510,6 +532,8 @@ This is a **planned behavior matrix**, not a list of device-verified claims. Imp
 | --- | --- | --- | --- |
 | Instagram on iPhone/iOS | Experimental Instagram scheme; optional Safari alternative | Opt-in, best effort, may prompt or do nothing | Real direct link and app-menu instructions |
 | Instagram on Android | Intent to configured external browser | Defer to a user gesture | Intent HTTPS fallback where honored, plus visible direct link |
+| Facebook on iPhone/iOS | Experimental Safari attempt, or explicitly configured Chrome | Opt-in, one attempt; may require tap/confirmation | Direct link and app-menu instructions |
+| Facebook on Android | Same intent strategies as Instagram | Defer to a user gesture | Direct link and app-menu instructions |
 | Instagram on iPad/iPadOS | Recognize only when app/OS signals are sufficiently clear | Same experimental restrictions as iOS if recognized | Direct behavior for uncertain desktop-style UA |
 | Safari on iOS/macOS | Ordinary links | None | Ordinary links |
 | Chrome/Firefox/other regular mobile browser | Ordinary links | None | Ordinary links |
@@ -532,7 +556,7 @@ Use the existing Node test runner for pure logic and build integration. Add a sm
 | --- | --- |
 | Config | All precedence branches; legacy defaults; invalid enums/types; duplicate IDs; invalid timeout/package; empty env; production branch restrictions |
 | URL construction | HTTPS/no credentials; Unicode; query ordering/repetition; percent encoding; fragments; `#Intent`/semicolon injection; invalid protocols; exact nested fallback target |
-| Detection | Representative iOS/Android Instagram UA; ordinary Safari/Chrome/desktop; iPad desktop UA uncertainty; unknown/missing UA |
+| Detection | Representative iOS/Android Instagram and Facebook UA; ordinary Safari/Chrome/desktop; iPad desktop UA uncertainty; unknown/missing UA |
 | Strategy | Global and per-link direct/native modes; disabled links; legacy service URLs unchanged; direct fallback for unsupported exact URL representation |
 | Controller | One attempt; pre-launch guard; no timers firing a second navigation; hidden/visible transitions; return/BFCache; blocked storage; marker preservation; cancellation |
 | Navigation | Direct href with JS off; missing client script; modified/middle click; fallback to exact original target; exception before interception |
@@ -545,11 +569,29 @@ Use the existing Node test runner for pure logic and build integration. Add a sm
 
 CI must run on public/synthetic inputs without production secrets, test at the minimum supported Node version, build the neutral demo, check reproducibility and source boundaries, and keep artifacts neutral. Required checks must fail rather than silently skip on a capable CI host. Local capability-related skips must be explicit.
 
+### Controlled crawler check
+
+Provide an operator-only `npm run check:crawl` command for observing what a fresh HTTP crawler receives from an owned deployment. Use the existing private config's origin/profile path by default, or an explicit HTTPS `--url`. Identify the probe with its own user agent. Make at most three sequential GET requests (initial request plus two same-origin redirects), with three seconds between requests, a ten-second timeout per request, and bounded response bodies. Never fetch linked destinations, load scripts, submit forms, reuse cookies, impersonate another crawler, or automatically retry a challenge/error. Stop on challenges, rate limits, blocked requests, external redirects, or deployment failures. Do not change WAF or Turnstile settings for the probe.
+
+Distinguish Cloudflare's `cf-mitigated: challenge` response, the branded gate, unavailable/error responses, and profile link markup. An observed challenge describes this request only; it is not evidence that Meta or all crawlers are blocked. Store only bounded diagnostic metadata, timestamps and Ray IDs in ignored `.private/` output, without HTML, cookies, key values, destination hrefs, or URL queries/fragments. Keep live checks out of CI and use injected HTTP responses for automated tests. Full automated browser flows continue using the existing synthetic provider fixtures, separate from production bot detection.
+
+#### JavaScript-capable browser observation
+
+Add `npm run check:crawl:browser` alongside the HTTP probe, using the existing Playwright dependency and fresh, nonpersistent Chromium. Use the same target selection, optional `--headed`, the browser's ordinary automation signals/user agent, JavaScript, and temporary cookies. Observe one page for up to 20 seconds, allowing normal page scripts and automatic verification/form navigation to run. Never click challenges, inject tokens, import clearance/session state, use stealth/proxy identities, or traverse discovered anchors. Do not modify deployment protections.
+
+Startup diagnostics must distinguish missing browser binaries, missing Linux system dependencies, and missing graphical display support. For other startup failures, retain a bounded underlying diagnostic and a debug command; do not instruct every failed launch to reinstall an already installed browser. Document the separate `playwright install-deps chromium` step on Linux.
+
+For additional browser coverage, allow an explicit `--channel` choice: `bundled` (existing Playwright default), `chromium` (full Chromium/new headless mode), or installed `chrome`/`msedge`. Allow `--headed` independently and record the selection in private reports. These remain fresh automated contexts with the same limits and no stealth, imported credentials, provider solving, or Meta impersonation. Do not automatically install/replace a user's system browser or run multiple live probes as a batch.
+
+Apply a 60-request budget and six main-document navigations, allowing the target origin and Cloudflare challenge resources. Block unrelated routed requests, popups, downloads, service workers and WebSockets. Count HTTP redirect hops too; Playwright routing does not intercept every redirect, so stop on any observed out-of-scope redirect or exceeded budget and explicitly document that in-flight requests may already have been sent. This is an owned-page diagnostic, not a network sandbox. Stop on a rate limit, terminal HTTP error, exposed profile links, or the observation deadline. A pending challenge at the deadline is an observation, not a confirmed interactive challenge or permanent block.
+
+Save a separate ignored JSON report and viewport screenshot. Report main-document statuses/timestamps/Ray IDs, aggregate request/failure counts, challenge/gate observations, profile-link DOM/visibility counts and final outcome. Exclude raw headers, request bodies, cookies, tokens, destination hrefs, query/fragment values, console text and page HTML. Screenshots can contain visible branding/content and remain private. Distinguish diagnostic restrictions/errors from protection outcomes. Disable live CLI runs in CI; test policies/classification with Node and the actual browser runner against isolated local fixtures. Document that production challenges do not officially support automated browsers, and no result simulates Meta or establishes policy compliance.
+
 ### Manual real-device checklist
 
 Record device model, OS, app/browser version, date, configuration, and expected/observed result for each release affecting handoff:
 
-1. Open the custom-domain page from a real Instagram profile/story on iPhone and Android. Confirm the landing content appears before any optional attempt.
+1. Open the custom-domain page from real Instagram and Facebook links on iPhone and Android. Confirm the initial profile or branded gate renders before any optional attempt; record whether a preceding Cloudflare edge challenge delays access to assistance.
 2. Test direct mode, native CTA tap, manual page opening, and opt-in automatic behavior separately.
 3. Accept and cancel system/app prompts; test browser absent/disabled, alternate default browser, repeated taps, and slow return to the page.
 4. Verify complete query/fragment values at the destination, including encoded and repeated parameters. Use synthetic values only.

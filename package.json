@@ -16,6 +16,8 @@
     "preview": "node scripts/serve.mjs",
     "preview:private": "node scripts/serve.mjs --private",
     "check:public": "node scripts/check-public.mjs",
+    "check:crawl": "node scripts/crawl-check.mjs",
+    "check:crawl:browser": "node scripts/browser-crawl-check.mjs",
     "test": "node --test tests/*.test.mjs",
     "example:refresh": "node scripts/example.mjs",
     "test:browser": "playwright test",

@@ -21,15 +21,17 @@ export function initialize(win = window) {
   const retry = doc.getElementById('handoff-retry');
   const instructions = doc.getElementById('handoff-instructions');
   const labels = options.browserOpening.labels;
+  const showManual = options.browserOpening.showManual;
   const controller = createHandoffController({ window: win, document: doc, delay: options.browserOpening.fallbackDelayMs, track,
     onState(state, attempt) {
       if (!panel) return;
-      panel.hidden = state === 'idle';
+      panel.hidden = state === 'idle' || (!showManual && (attempt?.id === 'page' || state !== 'fallback_visible'));
       if (!attempt) return;
       fallback.href = attempt.plan.target;
       fallback.dataset.linkId = attempt.id;
-      status.textContent = state === 'attempted' ? labels.pending : state === 'page_hidden_observed' ? '' : labels.unconfirmed;
-      retry.hidden = state !== 'fallback_visible';
+      status.textContent = !showManual ? '' : state === 'attempted' ? labels.pending : state === 'page_hidden_observed' ? '' : labels.unconfirmed;
+      retry.hidden = !showManual || state !== 'fallback_visible';
+      instructions.hidden = !showManual;
       instructions.textContent = context.platform === 'ios' ? labels.iosInstructions : labels.androidInstructions;
     },
   });
@@ -47,7 +49,7 @@ export function initialize(win = window) {
       track('outbound_click', { link_id: id });
       if (!navigate(plan, id, 'cta')) win.location.assign(anchor.href);
     };
-    if (age.request(resume)) { event.preventDefault(); return; }
+    if (age.request(resume, id, anchor)) { event.preventDefault(); return; }
     track('outbound_click', { link_id: id });
     track('browser_strategy', { link_id: id, strategy: plan.strategy, reason: plan.reason, trigger: 'cta' });
     if (plan.strategy === 'direct') return;
@@ -65,11 +67,11 @@ export function initialize(win = window) {
   fallback?.addEventListener('click', (event) => {
     if (!isPlainActivation(event, fallback)) return;
     const proceed = () => { track('fallback_click', { link_id: fallback.dataset.linkId }); controller.dismiss(); win.location.assign(fallback.href); };
-    if (age.request(proceed)) { event.preventDefault(); return; }
+    if (age.request(proceed, fallback.dataset.linkId, fallback)) { event.preventDefault(); return; }
     track('fallback_click', { link_id: fallback.dataset.linkId });
     controller.dismiss(); // The anchor's default navigation remains intact.
   });
-  retry?.addEventListener('click', () => {
+  if (showManual) retry?.addEventListener('click', () => {
     const active = controller.active;
     if (active) controller.attempt(active.plan, { id: active.id, trigger: 'retry' });
   });
@@ -105,7 +107,7 @@ export function initialize(win = window) {
   const visit = () => { if (!viewed && doc.visibilityState === 'visible' && !doc.prerendering) { viewed = true; track('landing_view'); } };
   visit(); doc.addEventListener('visibilitychange', visit); doc.addEventListener('prerenderingchange', visit);
   automaticPage = (userActivation = false) => {
-    if (options.browserOpening.mode !== 'native' || !options.browserOpening.autoOpen || !context.eligible || !age.accepted) return;
+    if (options.browserOpening.mode !== 'native' || !options.browserOpening.autoOpen || !context.eligible || !age.allows()) return;
     if (context.platform === 'android' && !userActivation) { track('handoff_deferred', { reason: 'gesture_required', trigger: 'automatic' }); return; }
     const target = controller.claimAutomatic();
     if (target) navigate(planFor(target, 'native', !userActivation), 'page', userActivation ? 'manual' : 'automatic');

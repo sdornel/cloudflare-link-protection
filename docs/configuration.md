@@ -48,6 +48,7 @@ Create `config/site.json` by copying the sample on a fresh clone; do not overwri
 | `secondaryLinks` | Same link fields plus `enabled` |
 | `previewNote` | Optional text while placeholder mode is enabled |
 | `seo` | `title`, optional `image`, and `imageAlt` |
+| `robots.allowCrawling` | Optional boolean, defaults to `true`; `false` requests no crawling across the entire deployment and omits the sitemap |
 | `analytics.cloudflareToken` | Optional public Web Analytics site token |
 | `appearance` | Browser theme color, color scheme, favicon colors |
 | `styles` | Overrides to the shared `config/theme.json` |
@@ -73,6 +74,29 @@ A non-root build generates the platform landing at `index.html`, the neutral dem
 Run `npm run dev:private` and visit `http://localhost:4173/sample-creator`. Workers and the preview server normalize directory pages to a trailing slash, preserving the query string. Both `/sample-creator` and `/example` work as entry URLs. Profile assets use explicit path prefixes and SEO uses the canonical trailing slash. Robots and sitemap files stay at the origin root. A production-ready profile can be indexed while the provisional landing and neutral demo remain noindex; placeholder profiles remain noindex too.
 
 Keep the real slug private in source just like the creator name. The deployed URL is public. Changing the slug removes the old generated path on the next build; no old-URL redirect is created. Renaming a live profile needs an intentional migration for existing bio links. Nested pages require HTTP/HTTPS for correct asset resolution; use the preview server rather than opening their files directly.
+
+## Crawl preferences
+
+The build generates `dist/robots.txt`; do not edit the generated file. Merge this into your ignored `config/site.json`, or into the complete `SITE_CONFIG_JSON` build secret for a Git-connected deployment, to request no crawling:
+
+```json
+{
+  "robots": { "allowCrawling": false }
+}
+```
+
+Rebuild and deploy. `/robots.txt` will contain:
+
+```text
+User-agent: *
+Disallow: /
+```
+
+This applies to the entire origin, including the landing and example. The profile also receives `noindex` metadata and the build omits the sitemap. Omit the setting or use `true` to retain permissive crawling; otherwise production-ready profiles then receive a sitemap. Explicit example builds use the committed sample's permissive setting regardless of private configuration.
+
+The Worker serves `/robots.txt` without a verification cookie or runtime keys. After deployment, check that the exact URL returns HTTP 200 and plain text, rather than a challenge page. Cloudflare edge challenges run before the Worker: if your own challenge rule catches this path, exclude `/robots.txt` from that rule for all visitors. This does not exempt profile pages or turn off their verification. Other Cloudflare features can still affect access; a successful local Worker test does not verify your edge settings.
+
+Robots instructions are voluntary and [are not access control](https://www.rfc-editor.org/rfc/rfc9309.html#section-3). They do not guarantee exclusion from Meta review or search results; a crawler that cannot fetch a page cannot read its `noindex` metadata. Treat this as a crawl preference alongside the separate security controls. The controlled crawler commands are explicit operator diagnostics and still request the configured target to observe those controls.
 
 ## Platform landing page
 
@@ -165,14 +189,17 @@ The [schema](../config/site.schema.json) supplies editor hints; the build additi
 | --- | --- |
 | `browserOpening.mode` | `direct` when omitted; `native` enables supported mobile assistance |
 | `browserOpening.autoOpen` | `false`; experimental one-time iOS page handoff |
-| `browserOpening.showManual` | `true`; shown only in eligible native contexts |
-| `browserOpening.iosStrategy` | `instagram`; optional `safari` alternative |
-| `browserOpening.androidPackage` | `com.android.chrome`; validate installed-browser behavior before changing |
+| `browserOpening.showManual` | Default `true`; `false` removes the browser-open button and same-page assistance, and hides browser retries/instructions on CTA fallback. Pair with `autoOpen: true` for automatic page opening without a manual offer. |
+| `browserOpening.iosStrategy` | `instagram`; optional `safari` or `chrome`. Facebook uses Safari instead of Instagram's scheme. None guarantees the default browser. |
+| `browserOpening.androidPackage` | `com.android.chrome`; `default` omits the package for OS resolution/chooser; validate on real devices |
 | `browserOpening.fallbackDelayMs` | `1800`; integer 800–5000, used only to show unconfirmed-attempt help |
 | `browserOpening.labels` | Optional plain-text `open`, `retry`, `continue`, `dismiss`, `pending`, `unconfirmed`, `iosInstructions`, `androidInstructions` |
 | Link `id` | Unique lowercase letters/digits/underscores/hyphens, 1–40 characters; positional default if absent |
 | Link `openingMode` | `inherit`, `direct`, or `native` |
 | `ageAcknowledgment.enabled` | `false` |
+| `ageAcknowledgment.scope` | `all` preserves the inline notice for every link; `primary` asks in a dialog only when the primary CTA is activated |
+| `ageAcknowledgment.title` | `18+ only` |
+| `ageAcknowledgment.acceptLabel` / `cancelLabel` | `I am 18 or older` / `Go back` |
 | `ageAcknowledgment.message` | Configurable plain-text notice |
 | `ageAcknowledgment.remember` | `session` or `none`; default `session` |
 | `analytics.ga4MeasurementId` | Empty by default; optional `G-…` public identifier |
@@ -181,6 +208,26 @@ The [schema](../config/site.schema.json) supplies editor hints; the build additi
 
 IDs are analytics labels: use generic values such as `projects`, never customer identifiers or secrets. All actual destinations remain public hrefs. No Bouncy-specific mode exists; use a service URL as an ordinary destination if needed.
 
-The 18+ feature is a self-attestation notice, not identity verification or restricted access. With JavaScript, an acknowledgment precedes enhanced navigation and remembers only a boolean. Without scripts, the notice and ordinary links remain available. An external browser has separate storage and can ask again.
+The 18+ feature is a self-attestation notice, not identity verification or restricted access. With JavaScript, an acknowledgment precedes the configured navigation and remembers only a boolean. Without scripts, the notice and ordinary links remain available. Modified clicks and the browser's own open-link menu retain ordinary browser behavior. An external browser has separate storage and can ask again.
+
+To ask only on the first primary-button click in a tab session, add this to your ignored `config/site.json` (and the full `SITE_CONFIG_JSON` build secret if Cloudflare builds from Git):
+
+```json
+{
+  "ageAcknowledgment": {
+    "enabled": true,
+    "scope": "primary",
+    "remember": "session",
+    "title": "18+ only",
+    "message": "This destination is for adults aged 18 or older. Please confirm your age to continue.",
+    "acceptLabel": "I am 18 or older",
+    "cancelLabel": "Go back"
+  }
+}
+```
+
+The dialog appears on primary CTA activation, not on arrival. Confirm continues to the original destination using its configured opening mode. Cancel or Escape keeps the visitor on the profile and restores focus to the initiating button. Secondary links and same-page browser opening remain available without acknowledgment. Older webviews without the modal API show the same confirmation inline. The heading, message, and labels accept plain text; style `.age-dialog`, `.age-actions`, and their child selectors through `styles.rules` or `config/theme.json`. Colors inherit the profile theme.
+
+Session storage is scoped to this origin and browser tab, with a separate acknowledgment for each profile path and primary link ID. Refreshing or returning in that session does not ask again. Browsers may restore a tab's session or copy it to a tab opened from that tab; this is not a timed expiry. If storage is blocked, or `remember` is `none`, acknowledgment lasts only until this document is replaced. Separate browsers have separate state. No birth date, identity document, or acknowledgment URL parameter is collected.
 
 Normal builds compile selected options into small public runtime settings; they do not publish the original JSON. An old config with no new feature blocks produces the original direct-link behavior.

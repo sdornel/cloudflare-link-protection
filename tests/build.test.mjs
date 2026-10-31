@@ -9,7 +9,7 @@ import { compileTheme } from '../scripts/theme.mjs';
 
 const original = JSON.parse(await readFile(path.join(root, 'config/site.example.json'), 'utf8'));
 const theme = JSON.parse(await readFile(path.join(root, 'config/theme.json'), 'utf8'));
-const fresh = () => { const config = structuredClone(original); delete config.browserOpening; delete config.schemaVersion; delete config.ageAcknowledgment; return config; };
+const fresh = () => { const config = structuredClone(original); delete config.browserOpening; delete config.schemaVersion; delete config.ageAcknowledgment; delete config.robots; return config; };
 async function temp(t) {
   const dir = await mkdtemp(path.join(tmpdir(), 'profile-page-test-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
@@ -177,6 +177,57 @@ test('production rejects unfinished config and generates canonical metadata for 
   assert.match(html, /content="index, follow"/);
   assert.doesNotMatch(html, /class="preview-note"/);
   assert.match(await readFile(path.join(outDir, 'sitemap.xml'), 'utf8'), /<loc>https:\/\/profile.example\/<\/loc>/);
+  assert.equal(await readFile(path.join(outDir, 'robots.txt'), 'utf8'), 'User-agent: *\nAllow: /\n\nSitemap: https://profile.example/sitemap.xml\n');
+});
+
+test('robots configuration validates types and keys without exposing private input', () => {
+  for (const robots of [undefined, {}, { allowCrawling: true }, { allowCrawling: false }]) {
+    assert.doesNotThrow(() => validateConfig({ ...fresh(), robots }));
+  }
+  for (const robots of [null, [], false, 'PRIVATE_MARKER', { allowCrawling: null },
+    { allowCrawling: 'PRIVATE_MARKER' }, { allowCrawling: 0 }, { PRIVATE_MARKER: true }]) {
+    assert.throws(() => validateConfig({ ...fresh(), robots }), error => /robots/.test(error.message) && !error.message.includes('PRIVATE_MARKER'));
+  }
+});
+
+for (const profilePath of ['/', '/sample-creator']) {
+  test(`disabling crawling removes the sitemap and indexing metadata at ${profilePath}`, async t => {
+    const config = { ...fresh(), siteUrl: 'https://profile.example', profilePath,
+      placeholderLinks: false, robots: { allowCrawling: true } };
+    for (const link of [config.primaryLink, ...config.secondaryLinks]) link.url = `https://example.com/${link.id}`;
+    const { outDir } = await built(t, { config, production: true });
+    assert.match(await readFile(path.join(outDir, 'sitemap.xml'), 'utf8'), /<urlset/);
+
+    config.robots.allowCrawling = false;
+    const result = await build({ outDir, config, production: true });
+    assert.equal(result.indexable, false);
+    assert.equal(await readFile(path.join(outDir, 'robots.txt'), 'utf8'), 'User-agent: *\nDisallow: /\n');
+    await assert.rejects(readFile(path.join(outDir, 'sitemap.xml')), { code: 'ENOENT' });
+    const html = await readFile(path.join(outDir, profilePath.slice(1), 'index.html'), 'utf8');
+    assert.match(html, /content="noindex, follow"/);
+    assert.doesNotMatch(html, /content="index, follow"/);
+
+    await build({ outDir, exampleBuild: true, env: { SITE_CONFIG_JSON: JSON.stringify(config) } });
+    assert.equal(await readFile(path.join(outDir, 'robots.txt'), 'utf8'), 'User-agent: *\nAllow: /\n');
+  });
+}
+
+test('primary age dialog uses escaped configurable copy and the profile theme without altering destinations', async t => {
+  const config = fresh();
+  config.primaryLink.url = 'https://example.com/exclusive?a=1&a=2#latest';
+  config.ageAcknowledgment = { enabled: true, scope: 'primary', title: '<18+>', acceptLabel: 'Yes & continue', cancelLabel: 'Stay here', message: 'Adults <only>' };
+  config.styles = { variables: { accent: '#234567' }, rules: { '.age-dialog': { 'border-radius': '32px' } } };
+  const { html, outDir } = await built(t, { config });
+  assert.match(html, /<dialog id="age-notice"[^>]*aria-labelledby="age-title"[^>]*aria-describedby="age-message"/);
+  assert.match(html, /&lt;18\+&gt;/);
+  assert.match(html, /Yes &amp; continue/);
+  assert.match(html, /id="age-cancel"[^>]*>Stay here/);
+  assert.match(html, /<noscript>[\s\S]*Adults &lt;only&gt;/);
+  assert.match(html, /href="https:\/\/example.com\/exclusive\?a=1&amp;a=2#latest"/);
+  const css = await readFile(path.join(outDir, 'styles.css'), 'utf8');
+  assert.match(css, /\.age-dialog \{[^}]*border-radius: 32px/);
+  assert.match(css, /--accent: #234567/);
+  assert.doesNotMatch(await readFile(path.join(outDir, 'example/index.html'), 'utf8'), /id="age-notice"/);
 });
 
 test('text is escaped, disabled links are omitted, and analytics is opt-in', async (t) => {

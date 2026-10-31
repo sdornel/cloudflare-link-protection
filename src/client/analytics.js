@@ -1,6 +1,6 @@
 const EVENTS = new Set(['landing_view', 'outbound_click', 'browser_strategy', 'handoff_attempt', 'handoff_deferred', 'handoff_page_hidden', 'handoff_unconfirmed', 'handoff_returned', 'fallback_shown', 'fallback_click', 'age_acknowledged']);
 const VALUES = {
-  strategy: new Set(['direct', 'ios-instagram', 'ios-safari', 'android-intent']),
+  strategy: new Set(['direct', 'ios-instagram', 'ios-safari', 'ios-chrome', 'android-intent']),
   platform: new Set(['ios', 'android', 'other']),
   trigger: new Set(['automatic', 'manual', 'cta', 'retry']),
   reason: new Set(['invalid_url', 'ordinary_navigation', 'unsupported_strategy', 'gesture_required', 'intent_url_unsupported', 'invalid_package', 'unsupported_context', 'unconfirmed', 'launch_error', 'returned']),

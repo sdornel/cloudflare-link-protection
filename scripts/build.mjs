@@ -125,12 +125,13 @@ export async function build({ config, privateBuild = false, exampleBuild = false
   await mkdir(path.join(outDir, 'example/more-soon'), { recursive: true });
   await writeFile(path.join(outDir, 'example/more-soon/index.html'), moreSoon);
   const rootPage = pages[0];
+  const allowCrawling = selected.config.robots?.allowCrawling !== false;
   const indexable = pages.some((page) => page.indexable);
   const sitemapURL = indexable ? new URL('/sitemap.xml', profilePage.config.siteUrl).href : '';
   const notFound = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Page not found | ${escapeHTML(rootPage.config.name)}</title><link rel="stylesheet" href="/styles.css?v=${rootPage.assetVersion}"><main class="page"><h1>Page not found</h1><p><a class="link" href="/">Back to ${escapeHTML(rootPage.config.name)}</a></p></main></html>\n`;
   await Promise.all([
     writeFile(path.join(outDir, '_headers'), headers), writeFile(path.join(outDir, '404.html'), notFound),
-    writeFile(path.join(outDir, 'robots.txt'), `User-agent: *\nAllow: /\n${indexable ? `\nSitemap: ${sitemapURL}\n` : ''}`),
+    writeFile(path.join(outDir, 'robots.txt'), `User-agent: *\n${allowCrawling ? 'Allow' : 'Disallow'}: /\n${indexable ? `\nSitemap: ${sitemapURL}\n` : ''}`),
   ]);
   if (indexable) await writeFile(path.join(outDir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${pages.filter((page) => page.indexable).map((page) => `<url><loc>${escapeHTML(page.siteURL)}</loc></url>`).join('')}</urlset>\n`);
   return { outDir, privateBuild, configSource: selected.source, indexable, pageCount: pages.length + 1, verificationEnabled: Boolean(verification),

@@ -1,6 +1,26 @@
 # Implementation and verification status
 
-Updated 2026-10-28. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
+Updated 2026-10-30. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
+
+## Publication review — 2026-10-30
+
+Refreshed both standalone neutral pages from the shared renderer so their embedded styles include the age dialog rules and match the CI regeneration check. Aligned the verification-gate specification with primary-only age acknowledgment, which permits same-page browser assistance before the CTA is activated.
+
+The public-source audit passes for 79 files, including comparison against local private display fields and audit terms. Independent Git file-list inspection confirms that the 71 tracked and eight new source files are within the audited public roots, with private configuration, credentials, build output, and reports excluded. Common credential-format scanning and comparison with available local credential values found no matches; values were not printed.
+
+`npm test` passes 10 of 11 test files. In the remaining publication-audit file, six tests pass, one skips because Git subprocesses are unavailable, and the directory-alias test fails with `spawnSync git EPERM`; the full suite is therefore not green in this workspace. The neutral build and Wrangler deployment dry run complete, although Wrangler cannot write its log outside the workspace. Playwright cannot start its configured web server, so browser integration remains unverified here. No live deployment was performed.
+
+## Primary CTA age acknowledgment — 2026-10-29
+
+Added `ageAcknowledgment.scope: primary`: a themed 18+ confirmation dialog on the primary CTA's first ordinary activation, with configurable heading, message, confirm/cancel labels, native focus handling, Escape dismissal, and inline fallback for older webviews. Confirm resumes the intended action once and stores a boolean for this profile/link in the tab session; cancel stores nothing. Secondary links and same-page browser handoff remain available. The default all-link notice is backward compatible, and the public example keeps acknowledgment disabled. Documentation distinguishes self-attestation from access control and describes no-script/modified-click behavior.
+
+Validation: **78 focused Node tests pass** across age acknowledgment, feature configuration, build output, browser strategies, and verification. The configured build, syntax checks, and diff whitespace check pass. Public-source audit passes for 79 files with the existing Git-index inspection limitation. Added Playwright regressions for dialog interactions and app wiring, but Chromium failed to launch in this environment, so those browser checks and visual inspection remain unverified. No deployment was performed.
+
+## Configurable crawl preferences — 2026-10-29
+
+Added optional `robots.allowCrawling` with a backward-compatible permissive default. Disabling it requests no crawling for the entire origin, marks configured profiles noindex, and removes the sitemap on rebuild. The public example stays permissive. The existing Worker exception serves `/robots.txt` without verification cookies or runtime credentials; Cloudflare edge rules remain separately configured and were not changed.
+
+Validation: **59 focused build, configuration, routing, and verification tests pass**, including root/nested crawl policy, stale sitemap removal, example isolation, invalid settings, and anonymous robots access. The configured build and diff whitespace check pass. The public-source audit passes for 79 files; the Git index was unavailable, so it checked known source roots. No live deployment or crawler compliance is claimed.
 
 ## Implemented
 
@@ -17,9 +37,41 @@ Updated 2026-10-28. The current release scope supports direct/native navigation.
 - Optional `profilePath` generates a creator below the root alongside a separate platform landing at `/` and neutral demo at `/example/`. The provisional homepage has independent JSON content/styling, optional private `landing` overrides, and a working demo CTA. Legacy root-profile configs retain their behavior. Slugs and private landing branding are included in publication audits.
 - Optional branded Turnstile gate with configurable copy/theme, server-side verification, signed sessions, protected document aliases, explicit retry/error states, and no provider dependency on the ordinary links page. The Worker runs before assets; verification remains disabled until runtime credentials and the config toggle are set. Activation and rollback are documented in [verification](verification.md).
 
-## Branded verification checks — 2026-10-28
+## Automatic opening without manual browser offers — 2026-10-28
 
-This feature is implemented locally, not deployed or activated. Earlier hosted-demo/CI evidence below predates this change.
+`showManual: false` now omits Open in Browser from generated profile/gate HTML and suppresses same-page handoff prompts, browser retries and instructions. Automatic attempts remain controlled by `autoOpen`, existing iOS strategy support and loop guards. Explicit CTA attempts retain an exact direct fallback; Android's user-activation requirement and preceding Cloudflare challenges remain unchanged. This does not guarantee automatic opening or establish Meta approval for undocumented schemes.
+
+All **45 focused tests pass**, including omitted controls, gate behavior without a manual button, automatic attempt limits and protected-content enforcement. A profile browser regression fixture was added and syntax-checked; execution retains the previously documented host restrictions. The specification and configuration/operator documentation describe the automatic-only presentation.
+
+## Facebook assistance, verification-page handoff and browser comparisons — 2026-10-28
+
+Added Facebook mobile UA detection alongside Instagram, explicit iOS Chrome strategy, and optional Android OS/default resolution while preserving the Chrome package default. Facebook never invokes Instagram's scheme. The branded gate now offers same-profile browser assistance using the shared strategy/controller, with a bounded optional iOS entry attempt, POST error recovery, original query/fragment preservation and shared loop guards. The gate exposes no creator destination or analytics settings, and the marker never grants verification. Configuration schema, compatibility notes and device checklist were updated.
+
+The crawler command now accepts bundled/full Chromium and installed Chrome/Edge channels, independently of headed/headless mode, and records the selection. No stealth, cookie import, challenge solving or repeated live batch runs were added. A preceding Cloudflare edge challenge still prevents all application handoff code from running; no dashboard protections were changed.
+
+Validation: **56 focused tests pass**. The full Node suite has **101 passes, one failure and one skip**; the failure and skip are the existing Git subprocess restrictions (`spawnSync git EPERM`). The neutral build, public-source audit and syntax checks pass. Playwright integration execution remains unavailable here: the preview server cannot listen (`EPERM`), and a direct full Chromium launch was blocked by a sandbox socket operation. A Facebook gate browser fixture was added with only the OS-launch boundary simulated. No physical Instagram/Facebook/browser-opening compatibility is claimed.
+
+## Controlled crawler check — 2026-10-28
+
+Follow-up startup diagnosis: after the operator installed Playwright and Chromium, a direct launch reproduced missing Linux shared libraries (`libnspr4.so` first; `ldd` also reported NSS and audio libraries). The CLI now distinguishes missing OS libraries from missing browser binaries/display support, and recommends `npx playwright install-deps chromium` for this failure. All seven browser diagnostic unit tests pass, and the real failing launch now emits the correct remedy. Browser execution remains blocked until those system packages are installed; no live browser protection result is claimed.
+
+Added a complementary `npm run check:crawl:browser` diagnostic using fresh Chromium, JavaScript and temporary cookies. It observes automatic page/gate behavior, distinguishes DOM exposure from visual rendering, and saves private JSON/screenshot evidence. It uses normal automation signals and bounded observation without challenge/link clicks. Request interception and redirect limitations are documented. The six browser-policy/report tests and ten HTTP tests pass (**16 total**); source audit and JavaScript syntax checks pass. Six real Chromium fixture tests were added but could not be executed in the agent workspace because Playwright and browser binaries are not installed. No live Chromium result is claimed.
+
+The operator subsequently supplied a live HTTP result showing status 403 with Cloudflare's challenge classification and a Ray ID. That establishes that this single HTTP request was challenged; it did not reach or evaluate the branded gate. It does not establish how JavaScript-capable or Meta crawlers behave.
+
+Added `npm run check:crawl`, an operator-only HTTP diagnostic with at most three sequential GETs, three-second spacing, same-origin redirects, explicit user agent, no cookie reuse, and no challenge solving or outbound-link traversal. Reports stay under ignored `.private/`. All **10 crawler tests pass**, including challenge stops, request limits, redirect boundaries, private-data omission, response size bounds, and distinct network/deployment failures. The public-source audit passes; Git index access retains the earlier host limitation.
+
+One live attempt from the agent environment ended in DNS error `EAI_AGAIN`. No Cloudflare protection result was obtained. The command is ready for the operator to run from their normal terminal; it does not establish how Meta or other browsers/crawlers behave. See [the crawler guide](crawler-check.md).
+
+## Verification form origin fix — 2026-10-28
+
+An operator reported reaching `/_verification/verify` and receiving “Request not allowed” after provisioning the runtime secrets. The gate's `Referrer-Policy: no-referrer` caused an incompatibility with strict origin validation: browsers send `Origin: null` on a form navigation under that policy. The gate now uses `same-origin`, retaining its own form's origin and withholding external referrers. Origin validation remains strict.
+
+All 22 Worker/client tests pass, including the gate-header assertion and existing null/foreign-origin rejection coverage. The browser flow now explicitly asserts the browser-generated POST origin; its syntax check passes, but Chromium/WebKit execution remains unavailable without installed dependencies. After redeployment, the operator reported that verification worked, with a standard Cloudflare challenge appearing before the branded check. This is operator-reported success, not an independently observed browser/device test or evidence of crawler blocking. Removing the duplicate broad edge challenge remains a dashboard configuration task.
+
+## Initial branded verification checks — 2026-10-28
+
+At the time of these initial checks, the feature was implemented locally and had not been deployed or activated. Earlier hosted-demo/CI evidence below predates this change.
 
 - Dependency-free Worker/client tests: **22 passed**, covering config validation, protected routes and internal metadata, nonce/action/hostname checks, token replay, safe redirects, cookie signatures/expiry/rotation, provider failure, retry/address preservation, narrow widget sizing, and static-preview rejection. A separate publication-audit regression checks private verification text while allowing shared defaults.
 - Full Node suite: **76 discovered, 74 passed, one skipped, one failed**. Both unavailable checks involve Git subprocesses; the existing directory-alias test fails at `spawnSync git` with `EPERM`. Application tests pass, but the full suite is not green on this host.

@@ -26,18 +26,23 @@ export function openingPlan(target, { mode = 'direct', iosStrategy = 'instagram'
   if (!isHTTPS(target)) return direct('invalid_url');
   if (mode !== 'native' || !context.eligible) return direct('ordinary_navigation');
   if (context.platform === 'ios') {
+    // Facebook cannot use Instagram's internal URL handler. Safari is an
+    // experimental alternative, not a claim about the user's default browser.
+    if (context.facebook && iosStrategy === 'instagram') iosStrategy = 'safari';
     if (iosStrategy === 'instagram') return { strategy: 'ios-instagram', target, fallback: target, uri: `instagram://extbrowser/?url=${encodeURIComponent(target)}`, automatic };
     if (iosStrategy === 'safari') return { strategy: 'ios-safari', target, fallback: target, uri: `x-safari-https://${target.slice(8)}`, automatic };
+    if (iosStrategy === 'chrome') return { strategy: 'ios-chrome', target, fallback: target, uri: `googlechromes://${target.slice(8)}`, automatic };
     return direct('unsupported_strategy');
   }
   if (context.platform === 'android') {
     if (automatic) return direct('gesture_required');
     // Do not silently discard fragments or risk ambiguous intent URI parsing.
     if (/[#;]/.test(target)) return direct('intent_url_unsupported');
-    if (!/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(androidPackage)) return direct('invalid_package');
+    if (androidPackage !== 'default' && !/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(androidPackage)) return direct('invalid_package');
+    const packageField = androidPackage === 'default' ? '' : `package=${androidPackage};`;
     return {
       strategy: 'android-intent', target, fallback: target,
-      uri: `intent://${target.slice(8)}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=${androidPackage};S.browser_fallback_url=${encodeURIComponent(target)};end`,
+      uri: `intent://${target.slice(8)}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;${packageField}S.browser_fallback_url=${encodeURIComponent(target)};end`,
     };
   }
   return direct('unsupported_context');

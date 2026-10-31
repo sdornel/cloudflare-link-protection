@@ -18,6 +18,17 @@
     "analytics"
   ],
   "properties": {
+    "robots": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Crawl preference for the entire deployment. False requests no crawling, emits noindex metadata, and omits the sitemap; it is not access control.",
+      "properties": {
+        "allowCrawling": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
     "schemaVersion": {
       "enum": [
         1,
@@ -279,13 +290,14 @@
         "iosStrategy": {
           "enum": [
             "instagram",
-            "safari"
+            "safari",
+            "chrome"
           ],
           "default": "instagram"
         },
         "androidPackage": {
           "type": "string",
-          "pattern": "^[a-zA-Z][a-zA-Z0-9_]*(?:\\.[a-zA-Z][a-zA-Z0-9_]*)+$",
+          "pattern": "^(?:default|[a-zA-Z][a-zA-Z0-9_]*(?:\\.[a-zA-Z][a-zA-Z0-9_]*)+)$",
           "default": "com.android.chrome"
         },
         "fallbackDelayMs": {
@@ -353,6 +365,23 @@
     "ageAcknowledgment": {
       "type": "object",
       "properties": {
+        "scope": {
+          "enum": ["all", "primary"],
+          "default": "all",
+          "description": "Primary shows a confirmation dialog only for the primary CTA; all retains the inline notice for every link."
+        },
+        "title": {
+          "type": "string", "minLength": 1, "maxLength": 500, "pattern": "\\S",
+          "default": "18+ only"
+        },
+        "acceptLabel": {
+          "type": "string", "minLength": 1, "maxLength": 500, "pattern": "\\S",
+          "default": "I am 18 or older"
+        },
+        "cancelLabel": {
+          "type": "string", "minLength": 1, "maxLength": 500, "pattern": "\\S",
+          "default": "Go back"
+        },
         "enabled": {
           "type": "boolean",
           "default": false

@@ -99,6 +99,11 @@ export function validateConfig(config, { production = false } = {}) {
   for (const field of ['name', 'bio', 'description']) requireText(config[field], field);
   requireText(config.profile?.initials, 'profile.initials');
   requireText(config.seo?.title, 'seo.title');
+  if (config.robots !== undefined) {
+    if (!config.robots || typeof config.robots !== 'object' || Array.isArray(config.robots)) throw new Error('robots must be an object.');
+    if (Object.keys(config.robots).some(key => key !== 'allowCrawling')) throw new Error('robots contains an unsupported field.');
+    if (config.robots.allowCrawling !== undefined && typeof config.robots.allowCrawling !== 'boolean') throw new Error('robots.allowCrawling must be true or false.');
+  }
   if (typeof config.placeholderLinks !== 'boolean') throw new Error('placeholderLinks must be true or false.');
   if (typeof config.previewNote !== 'string') throw new Error('previewNote must be text.');
   if (!Array.isArray(config.secondaryLinks)) throw new Error('secondaryLinks must be an array.');

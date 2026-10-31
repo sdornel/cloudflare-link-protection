@@ -4,6 +4,8 @@ import path from 'node:path';
 import { escapeHTML, readJSON } from './config.mjs';
 import { compileTheme } from './theme.mjs';
 import { normalizeVerification } from './verification-config.mjs';
+import { publicOptions } from './features.mjs';
+import { browserAssistance, safeJSON } from './render.mjs';
 
 export async function compileVerification({ config, profile, projectRoot }) {
   const settings = normalizeVerification(config.verification);
@@ -19,11 +21,17 @@ export async function compileVerification({ config, profile, projectRoot }) {
     ? `<img src="${escapeHTML(imageURL)}" alt="${escapeHTML(config.profile.alt)}" width="84" height="84" decoding="async">`
     : `<span aria-hidden="true">${escapeHTML(config.profile.initials)}</span>`;
   const text = settings.copy;
+  const opening = publicOptions(profile.config).browserOpening;
+  const assist = opening.mode === 'native';
+  const age = profile.config.ageAcknowledgment;
+  const openingOptions = { ...opening, autoOpen: opening.autoOpen && !(age.enabled && age.scope === 'all') };
   const tokens = {
     BACKGROUND: config.appearance.browserThemeColor, COLOR_SCHEME: config.appearance.colorScheme,
     NAME: escapeHTML(config.name), HEADING: escapeHTML(text.heading), DESCRIPTION: escapeHTML(text.description),
     FOOTER: escapeHTML(text.footer), RETRY: escapeHTML(text.retry), NO_SCRIPT: escapeHTML(text.noScript),
     FAVICON: `${base}favicon.svg`, AVATAR: avatar, WIDGET_THEME: settings.widgetTheme, VERSION: version,
+    BROWSER_ASSISTANCE: assist ? browserAssistance(profile.config) : '',
+    BROWSER_CLIENT: assist ? `<script id="verification-opening-options" type="application/json">${safeJSON(openingOptions)}</script><script type="module" src="${base}assets/${profile.clientVersion}/verification-opening.js"></script>` : '',
     MESSAGES: ['loading', 'verifying', 'error', 'expired', 'unavailable'].map(key => `<span data-message="${key}">${escapeHTML(text[key])}</span>`).join(''),
   };
   const template = (await readFile(path.join(projectRoot, 'src/verification.html'), 'utf8')).replace(/\{\{([A-Z_]+)\}\}/g, (match, key) => {

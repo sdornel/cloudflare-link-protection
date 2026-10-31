@@ -36,7 +36,7 @@ async function fixture(t, override = {}) {
         if ((await stat(filename)).isDirectory()) filename = path.join(filename, 'index.html');
         const bytes = await readFile(filename);
         if (request.headers.has('If-None-Match')) return new Response(null, { status: 304 });
-        const type = filename.endsWith('.json') ? 'application/json' : filename.endsWith('.css') ? 'text/css' : filename.endsWith('.js') ? 'text/javascript' : 'text/html';
+        const type = filename.endsWith('.json') ? 'application/json' : filename.endsWith('.css') ? 'text/css' : filename.endsWith('.js') ? 'text/javascript' : filename.endsWith('.txt') ? 'text/plain' : 'text/html';
         return new Response(bytes, { headers: { 'Content-Type': type, ETag: 'fixture-etag' } });
       } catch { return new Response('Not found', { status: 404 }); }
     } },
@@ -76,6 +76,46 @@ test('verification config defaults, bounds, and secret rejection', () => {
   assert.equal(normalizeVerification({ copy: { heading: 'Hello' } }).copy.heading, 'Hello');
 });
 
+test('native gate exposes only same-page assistance options and public modules before verification', async t => {
+  const f = await fixture(t, { browserOpening: { mode: 'native', autoOpen: true }, analytics: { cloudflareToken: '', ga4MeasurementId: 'G-TEST1234' } });
+  const { html } = await f.challenge(profilePath + '/?_lp_handoff=1');
+  assert.match(html, /id="verification-form"/); // marker never grants a session
+  assert.match(html, /id="browser-open"/);
+  assert.doesNotMatch(html, /data-link-id=|G-TEST1234|https:\/\/www.googletagmanager.com\/gtag/);
+  const options = JSON.parse(html.match(/id="verification-opening-options" type="application\/json">([^<]+)</)[1]);
+  assert.equal(options.autoOpen, true);
+  const source = html.match(/src="([^"]+\/verification-opening.js)"/)[1];
+  assert.equal((await f.get(source)).status, 200);
+  assert.match(await (await f.get(source)).text(), /initializeVerificationOpening/);
+});
+
+test('direct mode omits gate assistance and age-enabled profiles defer gate auto-opening', async t => {
+  const direct = await fixture(t, { browserOpening: { mode: 'direct' } });
+  assert.doesNotMatch((await direct.challenge()).html, /verification-opening-options|id="browser-open"/);
+  const age = await fixture(t, { browserOpening: { mode: 'native', autoOpen: true }, ageAcknowledgment: { enabled: true } });
+  const { html } = await age.challenge();
+  const options = JSON.parse(html.match(/id="verification-opening-options" type="application\/json">([^<]+)</)[1]);
+  assert.equal(options.autoOpen, false);
+  assert.equal(options.mode, 'native');
+  const primary = await fixture(t, { browserOpening: { mode: 'native', autoOpen: true }, ageAcknowledgment: { enabled: true, scope: 'primary' } });
+  const primaryHTML = (await primary.challenge()).html;
+  const primaryOptions = JSON.parse(primaryHTML.match(/id="verification-opening-options" type="application\/json">([^<]+)</)[1]);
+  assert.equal(primaryOptions.autoOpen, true, 'primary-only acknowledgment does not block same-page handoff');
+  assert.doesNotMatch(primaryHTML, /id="age-notice"/);
+});
+
+test('automatic-only build omits manual buttons on both the gate and protected profile', async t => {
+  const f = await fixture(t, { browserOpening: { mode: 'native', autoOpen: true, showManual: false } });
+  const { html } = await f.challenge();
+  const profile = await readFile(path.join(f.directory, profilePath, 'index.html'), 'utf8');
+  for (const document of [html, profile]) assert.doesNotMatch(document, /id="browser-open"/);
+  assert.match(html, /verification-opening.js/);
+  const options = JSON.parse(html.match(/id="verification-opening-options" type="application\/json">([^<]+)</)[1]);
+  assert.equal(options.autoOpen, true);
+  assert.equal(options.showManual, false);
+  assert.match(html, /id="verification-form"/);
+});
+
 test('build uses profile branding, escapes text, isolates gate styling and publishes no credentials/config', async t => {
   const f = await fixture(t);
   const manifest = JSON.parse(await readFile(path.join(f.directory, '_verification/manifest.json'), 'utf8'));
@@ -105,6 +145,7 @@ test('unauthenticated profile aliases return the gate without fetching profile H
     assert.doesNotMatch(html, /Explore my work|data-link-id/);
     assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
     assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, nofollow');
+    assert.equal(response.headers.get('Referrer-Policy'), 'same-origin', 'the gate must preserve Origin on same-origin form POSTs');
     assert.match(response.headers.get('Content-Security-Policy'), /frame-src https:\/\/challenges.cloudflare.com/);
     assert.match(response.headers.get('Content-Security-Policy'), /form-action 'self'/);
     assert.doesNotMatch(response.headers.get('Content-Security-Policy'), /unsafe-inline|unsafe-eval/);
@@ -153,6 +194,23 @@ test('public homepage, example, and enumerated assets stay accessible; metadata 
     const response = await f.get(target);
     assert.equal(response.status, 400, target);
     assert.doesNotMatch(await response.text(), /Explore my work/);
+  }
+});
+
+test('robots remains readable without a session for root and nested verification gates', async t => {
+  for (const profilePath of ['/', '/sample-creator']) {
+    const f = await fixture(t, { profilePath, robots: { allowCrawling: false } });
+    delete f.env.TURNSTILE_SITE_KEY;
+    delete f.env.TURNSTILE_SECRET_KEY;
+    delete f.env.VERIFICATION_SESSION_SECRET;
+    for (const userAgent of ['ProfilePageProbe/1.0', 'Mozilla/5.0']) {
+      const response = await f.get('/robots.txt', { headers: { 'User-Agent': userAgent } });
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get('Content-Type'), /^text\/plain/);
+      assert.equal(response.headers.get('Set-Cookie'), null);
+      assert.equal(await response.text(), 'User-agent: *\nDisallow: /\n');
+    }
+    assert.equal(f.state.verificationCalls.length, 0);
   }
 });
 

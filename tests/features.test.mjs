@@ -33,10 +33,32 @@ test('feature validation rejects invalid modes, ranges, IDs, disabled-link strat
     c => { c.primaryLink.id = 'same'; c.secondaryLinks[0].id = 'same'; },
     c => { c.secondaryLinks[0].enabled = false; c.secondaryLinks[0].openingMode = 'bad'; },
     c => c.ageAcknowledgment = { enabled: 'yes' },
+    c => c.ageAcknowledgment = { scope: 'all-but-primary' },
+    c => c.ageAcknowledgment = { title: '' },
+    c => c.ageAcknowledgment = { acceptLabel: null },
+    c => c.ageAcknowledgment = { cancelLabel: 'x'.repeat(501) },
     c => c.analytics.ga4MeasurementId = 'SECRET_MARKER',
     c => c.analytics.ga4Consent = 'maybe',
   ];
   for (const mutate of mutations) { const config = fresh(); mutate(config); assert.throws(() => validateConfig(config), error => !error.message.includes('SECRET_MARKER')); }
+});
+
+test('age scope defaults to all; primary scope publishes only its target ID and behavior', () => {
+  assert.equal(normalizeFeatures(fresh()).ageAcknowledgment.scope, 'all');
+  const config = fresh();
+  config.ageAcknowledgment = { enabled: true, scope: 'primary', internalNote: 'PRIVATE_MARKER' };
+  const normalized = normalizeFeatures(config);
+  assert.deepEqual(publicOptions(normalized).ageAcknowledgment, {
+    enabled: true, remember: 'session', scope: 'primary', primaryLinkId: normalized.primaryLink.id,
+  });
+});
+
+test('browser configuration accepts explicit iOS Chrome and Android default resolution', () => {
+  const config = fresh();
+  config.browserOpening = { mode: 'native', iosStrategy: 'chrome', androidPackage: 'default' };
+  validateConfig(config);
+  assert.equal(publicOptions(normalizeFeatures(config)).browserOpening.androidPackage, 'default');
+  assert.equal(publicOptions(normalizeFeatures(config)).browserOpening.iosStrategy, 'chrome');
 });
 
 test('analytics events only contain known bounded fields, never URLs or success claims', () => {

@@ -9,13 +9,14 @@ const destination = 'https://example.com/projects?a=1&a=2&encoded=%20#latest';
 
 // Serve a real synthetic build, including its CSP. Only the OS launch boundary
 // is replaced: the production app initializes and handles every click itself.
-async function fixture(page, { platform = 'ios', failLaunch = false, blockedStorage = false, autoOpen = false, age = false, analytics = false, mode = 'native', profilePath = '/' } = {}) {
+async function fixture(page, { platform = 'ios', failLaunch = false, blockedStorage = false, autoOpen = false, showManual = true, age = false, ageScope = 'all', analytics = false, mode = 'native', profilePath = '/' } = {}) {
   const config = JSON.parse(await readFile(new URL('../../config/site.example.json', import.meta.url), 'utf8'));
   config.siteUrl = origin;
   config.profilePath = profilePath;
   config.primaryLink.url = destination;
-  config.browserOpening = { ...config.browserOpening, mode, autoOpen, fallbackDelayMs: 800 };
+  config.browserOpening = { ...config.browserOpening, mode, autoOpen, showManual, fallbackDelayMs: 800 };
   config.ageAcknowledgment.enabled = age;
+  config.ageAcknowledgment.scope = ageScope;
   if (analytics) config.analytics.ga4MeasurementId = 'G-TEST1234';
   const directory = await mkdtemp(path.join(tmpdir(), 'profile-browser-'));
   try {
@@ -92,6 +93,76 @@ test('age confirmation resumes the intended CTA once with storage blocked', asyn
   } finally { await cleanup(); }
 });
 
+test('primary age dialog cancels accessibly and remembers confirmation across reload in the same tab', async ({ page }) => {
+  const cleanup = await fixture(page, { age: true, ageScope: 'primary', profilePath: '/sample-creator' });
+  try {
+    const cta = page.getByRole('link', { name: 'Explore my work' });
+    const dialog = page.getByRole('dialog', { name: '18+ only' });
+    await expect(dialog).toBeHidden();
+    await cta.click();
+    await expect(dialog).toBeVisible();
+    await expect(page.locator('#age-accept')).toBeFocused();
+    expect(await page.evaluate(() => window.__launches.length)).toBe(0);
+    await page.keyboard.press('Tab');
+    await expect(page.locator('#age-cancel')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(cta).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(dialog).toBeVisible();
+    await page.locator('#age-cancel').click();
+    await expect(cta).toBeFocused();
+    await cta.click();
+    await page.locator('#age-accept').click();
+    await expect(dialog).toBeHidden();
+    expect(await page.evaluate(() => window.__launches.map(launch => launch.target))).toEqual([destination]);
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+    await cta.click();
+    await expect(dialog).toBeHidden();
+    expect(await page.evaluate(() => window.__launches.map(launch => launch.target))).toEqual([destination]);
+    await page.evaluate(() => sessionStorage.clear());
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+    await cta.click();
+    await expect(dialog).toBeVisible();
+    expect(await page.evaluate(() => window.__launches.length)).toBe(0);
+  } finally { await cleanup(); }
+});
+
+test('primary age prompt preserves direct navigation and leaves secondary links available', async ({ page }) => {
+  const cleanup = await fixture(page, { age: true, ageScope: 'primary', mode: 'direct' });
+  try {
+    await page.getByRole('link', { name: 'Read my notes' }).click();
+    await expect(page).toHaveURL(`${origin}/example/more-soon/`);
+    await page.goBack();
+    await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+    await page.route('https://example.com/**', route => route.fulfill({ contentType: 'text/html', body: '<h1>Selected destination</h1>' }));
+    await page.getByRole('link', { name: 'Explore my work' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.locator('#age-accept').click();
+    await expect(page).toHaveURL(destination);
+    await page.goBack();
+    await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+    await page.getByRole('link', { name: 'Explore my work' }).click();
+    await expect(page).toHaveURL(destination);
+  } finally { await cleanup(); }
+});
+
+test('primary age scope permits automatic same-page handoff before the CTA prompt', async ({ page }) => {
+  const cleanup = await fixture(page, { age: true, ageScope: 'primary', autoOpen: true });
+  try {
+    await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(1);
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await page.getByRole('link', { name: 'Explore my work' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    expect(await page.evaluate(() => window.__launches.length)).toBe(1);
+    await page.locator('#age-accept').click();
+    await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(2);
+    expect(await page.evaluate(() => window.__launches[1].target)).toBe(destination);
+  } finally { await cleanup(); }
+});
+
 test('automatic iOS opening writes a URL guard and cannot repeat after reload', async ({ page }) => {
   const cleanup = await fixture(page, { autoOpen: true, blockedStorage: true });
   try {
@@ -103,6 +174,26 @@ test('automatic iOS opening writes a URL guard and cannot repeat after reload', 
     expect(await page.evaluate(() => window.__launches.length)).toBe(0);
     await page.locator('#browser-open').click();
     await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(1);
+  } finally { await cleanup(); }
+});
+
+test('automatic-only opening has no browser offers while an unsuccessful CTA retains its direct fallback', async ({ page }) => {
+  const cleanup = await fixture(page, { autoOpen: true, showManual: false, failLaunch: true });
+  try {
+    await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(1);
+    await expect(page.locator('#browser-open')).toHaveCount(0);
+    await expect(page.locator('#handoff-panel')).toBeHidden();
+    await page.getByRole('link', { name: 'Explore my work' }).click();
+    await expect.poll(() => page.evaluate(() => window.__launches.length)).toBe(2);
+    await expect(page.locator('#handoff-direct')).toBeVisible();
+    await expect(page.locator('#handoff-direct')).toHaveAttribute('href', destination);
+    await expect(page.locator('#handoff-retry')).toBeHidden();
+    await expect(page.locator('#handoff-instructions')).toBeHidden();
+    await expect(page.locator('#handoff-status')).toBeEmpty();
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => window.__events.some(event => event.name === 'landing_view'))).toBe(true);
+    expect(await page.evaluate(() => window.__launches.length)).toBe(0);
+    await expect(page.locator('#handoff-panel')).toBeHidden();
   } finally { await cleanup(); }
 });
 

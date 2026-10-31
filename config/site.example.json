@@ -5,6 +5,9 @@
   "siteUrl": "",
   "profilePath": "/",
   "placeholderLinks": true,
+  "robots": {
+    "allowCrawling": true
+  },
   "profile": {
     "initials": "YN",
     "image": "",

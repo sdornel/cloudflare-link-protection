@@ -68,7 +68,10 @@ function securityHeaders(config, gate = false) {
       .replace("connect-src 'self'", "connect-src 'self' https://challenges.cloudflare.com")
       .replace("form-action 'none'", "form-action 'self'");
     headers.set('Content-Security-Policy', `${policy}; frame-src https://challenges.cloudflare.com`);
-    headers.set('Referrer-Policy', 'no-referrer');
+    // A no-referrer policy makes navigation POSTs send Origin: null, including
+    // this same-origin form. Keep its Origin usable for CSRF checks while
+    // withholding referrers from third-party widget requests.
+    headers.set('Referrer-Policy', 'same-origin');
     headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
   return headers;

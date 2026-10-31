@@ -17,7 +17,7 @@ function renderLink(link, primary = false, placeholderHref = PLACEHOLDER_URL) {
 }
 
 export function renderPage({ config, template, profile, share, assetVersion, clientVersion, enhanced = false, showSetupGuide = false, placeholderHref = PLACEHOLDER_URL }) {
-  const indexable = Boolean(config.siteUrl && !config.placeholderLinks);
+  const indexable = Boolean(config.siteUrl && !config.placeholderLinks && config.robots?.allowCrawling !== false);
   const pagePath = config.profilePath && config.profilePath !== '/' ? `${config.profilePath}/` : '/';
   const assetBase = pagePath === '/' ? './' : pagePath;
   const siteURL = config.siteUrl ? new URL(pagePath, config.siteUrl).href : '';
@@ -60,15 +60,24 @@ export function renderMoreSoon({ template, css, assetVersion, standalone = false
 }
 
 function ageNotice(config) {
-  return `<section id="age-notice" class="notice" aria-label="Age acknowledgment"><p>${escapeHTML(config.ageAcknowledgment.message)}</p><button id="age-accept" class="quiet-button" type="button" hidden>I am 18 or older</button><p id="age-status" class="status" role="status"></p><noscript><p>Please acknowledge this notice before using the links. This is a self-attestation notice.</p></noscript></section>`;
+  const age = config.ageAcknowledgment;
+  if (age.scope === 'primary') return `<dialog id="age-notice" class="age-dialog" aria-labelledby="age-title" aria-describedby="age-message">
+        <h2 id="age-title">${escapeHTML(age.title)}</h2>
+        <p id="age-message">${escapeHTML(age.message)}</p>
+        <div class="age-actions"><button id="age-accept" class="link link-primary" type="button" autofocus>${escapeHTML(age.acceptLabel)}</button><button id="age-cancel" class="quiet-button" type="button">${escapeHTML(age.cancelLabel)}</button></div>
+        <p id="age-status" class="status" role="status"></p>
+      </dialog><noscript><section class="notice" aria-label="Age acknowledgment"><p>${escapeHTML(age.message)}</p></section></noscript>`;
+  return `<section id="age-notice" class="notice" aria-label="Age acknowledgment"><p>${escapeHTML(age.message)}</p><button id="age-accept" class="quiet-button" type="button" hidden>${escapeHTML(age.acceptLabel)}</button><p id="age-status" class="status" role="status"></p><noscript><p>Please acknowledge this notice before using the links. This is a self-attestation notice.</p></noscript></section>`;
 }
-function enhancements(config) {
+export function browserAssistance(config) {
   const text = config.browserOpening.labels;
-  return `<div class="browser-tools"><button id="browser-open" class="quiet-button" type="button" hidden>${escapeHTML(text.open)}</button></div>
+  return `${config.browserOpening.showManual ? `<div class="browser-tools"><button id="browser-open" class="quiet-button" type="button" hidden>${escapeHTML(text.open)}</button></div>` : ''}
       <section id="handoff-panel" class="notice" aria-label="Browser assistance" hidden>
         <p id="handoff-status" class="status" role="status" aria-live="polite"></p>
         <p id="handoff-instructions" class="hint"></p>
         <div class="actions"><a id="handoff-direct" class="quiet-button" href="#links">${escapeHTML(text.continue)}</a><button id="handoff-retry" class="quiet-button" type="button" hidden>${escapeHTML(text.retry)}</button><button id="handoff-dismiss" class="quiet-button" type="button">${escapeHTML(text.dismiss)}</button></div>
-      </section>
-      ${config.analytics.ga4MeasurementId ? '<section id="analytics-consent" class="notice" aria-label="Optional analytics" hidden><p>Allow optional usage measurement to help improve this page?</p><p id="analytics-status" class="status" role="status"></p><div class="actions"><button id="analytics-allow" class="quiet-button" type="button">Allow analytics</button><button id="analytics-decline" class="quiet-button" type="button">Keep analytics off</button></div></section>' : ''}`;
+      </section>`;
+}
+function enhancements(config) {
+  return browserAssistance(config) + (config.analytics.ga4MeasurementId ? '<section id="analytics-consent" class="notice" aria-label="Optional analytics" hidden><p>Allow optional usage measurement to help improve this page?</p><p id="analytics-status" class="status" role="status"></p><div class="actions"><button id="analytics-allow" class="quiet-button" type="button">Allow analytics</button><button id="analytics-decline" class="quiet-button" type="button">Keep analytics off</button></div></section>' : '');
 }
