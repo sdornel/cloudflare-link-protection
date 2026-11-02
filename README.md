@@ -39,6 +39,7 @@ These captures predate the generic bio and the removal of the demo notice and pu
 - A configurable platform landing at `/`, the neutral demo at `/example/`, and an optional creator path such as `/sample-creator`, on the same Worker.
 - Native iOS scheme and Android intent strategies for Instagram/Facebook, manual Open in Browser on the profile and branded verification page, direct fallbacks, and loop guards.
 - Optional experimental automatic page handoff; Android has a separate `androidAutoOpen` opt-in. Both flags are enabled in the hosted sample and off when omitted.
+- Optional [required-browser popup](docs/browser-opening.md#require-an-external-browser-before-continuing): one automatic attempt, then one browser-opening button and app-menu instructions in mobile Instagram/Facebook.
 - Optional 18+ acknowledgment for all links or a confirmation dialog on the primary CTA, remembered for the tab session. Copy and styling are configurable. Cloudflare visit/performance analytics and optional GA4 interaction events.
 - Optional branded Turnstile verification, enforced by the Worker with signed sessions; configuration controls copy and styling. Disabled until configured. [Activation guide](docs/verification.md).
 - Safe config serialization, security headers, selective image copying, and public-source checks.
@@ -131,6 +132,6 @@ npm run screenshots
 npm run check:performance
 ```
 
-`test:handoff` runs six focused Chromium cases against unchanged demo assets, observing real navigation requests for first taps and the More soon/Back round trip. It does not confirm an Android app switch or Instagram prompt. The [testing guide](docs/testing.md) separates automated evidence from real-device checks. Chromium/WebKit tests, neutral screenshots, local performance measurements, and initial live-demo checks are recorded in the [status guide](docs/implementation-status.md). Physical Instagram handoff and custom-domain checks remain pending. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [MIT license](LICENSE).
+`test:handoff` runs focused Chromium cases against actual generated assets, observing real navigation requests for first taps, the More soon/Back round trip, and the required-browser popup on profile and verification pages. It does not confirm an Android app switch or Instagram prompt. The [testing guide](docs/testing.md) separates automated evidence from real-device checks. Chromium/WebKit tests, neutral screenshots, local performance measurements, and initial live-demo checks are recorded in the [status guide](docs/implementation-status.md). Physical Instagram handoff checks remain pending. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [MIT license](LICENSE).
 
 Dedicated Bouncy integration is deferred. The [specification](SPEC.md) and [implementation status](docs/implementation-status.md) track the current direct/native scope and remaining release checks.

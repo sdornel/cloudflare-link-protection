@@ -369,11 +369,70 @@
               "minLength": 1,
               "pattern": "\\S",
               "maxLength": 500
+            },
+            "externalTitle": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "externalChromeUnconfirmed": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "externalUnconfirmed": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "externalInstructions": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
+            },
+            "externalOpen": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "maxLength": 500
             }
           },
           "additionalProperties": false
+        },
+        "requireExternalBrowser": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require a browser-opening modal in mobile Instagram/Facebook. Requires native mode; independent of showManual."
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "requireExternalBrowser"
+            ],
+            "properties": {
+              "requireExternalBrowser": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "const": "native"
+              }
+            }
+          }
+        }
+      ]
     },
     "ageAcknowledgment": {
       "type": "object",

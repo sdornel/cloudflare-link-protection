@@ -12,7 +12,7 @@ export function createHandoffController({ window: win, document: doc, delay = 18
     active.cleanup = null;
   };
   const defaultLaunch = (plan, trigger) => {
-    if (plan.strategy === 'android-intent' && trigger === 'cta' && active.anchor) {
+    if (plan.strategy === 'android-intent' && ['cta', 'manual'].includes(trigger) && active.anchor) {
       // Let this real anchor's default activation request the intent. A
       // location.assign redirect is a different navigation kind to the host.
       const anchor = active.anchor;

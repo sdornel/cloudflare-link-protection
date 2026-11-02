@@ -1,5 +1,30 @@
 # Browser opening
 
+## Require an external browser before continuing
+
+For an automatic attempt followed by a one-button popup, merge these settings into the complete private `config/site.json` (and the production `SITE_CONFIG_JSON` build secret when using GitHub builds):
+
+```json
+"browserOpening": {
+  "mode": "native",
+  "autoOpen": true,
+  "androidAutoOpen": true,
+  "requireExternalBrowser": true,
+  "showManual": false,
+  "androidPackage": "com.android.chrome",
+  "iosStrategy": "instagram",
+  "fallbackDelayMs": 1800
+}
+```
+
+In detected mobile Instagram/Facebook browsers, the page requests **this same page** in an external browser once. The app controls whether a leaving-app prompt appears. If the page is still visible after the delay, a branded popup says **Couldn't open in Chrome automatically.**, with one **Open in browser** button and instructions to use the three-dot menu at the top right. Other browser strategies use generic browser wording. A timeout is an unconfirmed attempt, not proof of failure. If no automatic attempt occurred, the heading is **Open this page in your browser** instead.
+
+This opt-in flow has no help, dismiss, copy-link, or Continue here button. The profile is inert until opened in a normal browser. A visitor whose app refuses launches must use its browser menu or leave. `showManual` only controls the older optional inline assistance; it does not suppress this required popup. Set `requireExternalBrowser: false` to restore that optional flow. The public example keeps the optional flow by default.
+
+`src/client/external-browser-dialog.js` shares the handoff controller between the profile and branded verification page. Verification waits until the page opens in an external browser, where a fresh check runs normally. The same-page switch precedes age acknowledgment; the configured age notice still applies to destinations afterward. POST/error pages only offer manual opening of the original GET page. Cloudflare edge challenges may appear before any site script can run.
+
+Customize `browserOpening.labels.externalTitle`, `externalChromeUnconfirmed`, `externalUnconfirmed`, `externalInstructions`, and `externalOpen`. Customize `.external-browser-dialog` and its child rules through `styles.rules`; it inherits the profile's colors. Normal browsers are unaffected, and missing JavaScript retains the static baseline. This is navigation UX, not access control, crawler filtering, or a guarantee of app escape. Menu labels/positions vary between app versions.
+
 The public Instagram/Facebook URL should point to your own landing-page domain. All visitors receive the same page content and the same actual link destinations. User-agent detection only enables navigation assistance.
 
 ## Modes
@@ -59,7 +84,7 @@ For an existing deployment, merge into the ignored `config/site.json`:
 
 Keep the rest of the configuration. Rebuild with `npm run build` and deploy with `npx wrangler deploy`; Git-connected builds also require updating their private `SITE_CONFIG_JSON` build secret. A tap or app-menu action can still be required; `autoOpen` is an attempt, not an enforcement setting.
 
-The example above requests **automatic page opening without a manual offer**, including the Android experiment. With `showManual: false`, neither the profile nor the branded gate contains an Open in Browser button, and an unconfirmed page-opening attempt does not reveal a browser retry/instruction panel. Ordinary CTA taps can still use the native strategy after an unconfirmed attempt. Failed CTA attempts retain their exact direct Continue here link, with browser retry controls and instructions hidden. Set `showManual: true` to restore optional browser assistance. Set `androidAutoOpen: false` to restore Android tap-only behavior without changing iOS.
+With `requireExternalBrowser` left at its default `false`, the example above requests **automatic page opening without a manual offer**, including the Android experiment. With `showManual: false`, neither the profile nor the branded gate contains an Open in Browser button, and an unconfirmed page-opening attempt does not reveal a browser retry/instruction panel. Ordinary CTA taps can still use the native strategy after an unconfirmed attempt. Failed CTA attempts retain their exact direct Continue here link, with browser retry controls and instructions hidden. Set `showManual: true` to restore optional browser assistance. Set `androidAutoOpen: false` to restore Android tap-only behavior without changing iOS.
 
 ## Verification and security ordering
 
@@ -69,7 +94,7 @@ The initial gate permits one automatic iOS attempt, or an Android attempt with `
 
 **A Cloudflare edge challenge comes first.** While it replaces the response, none of our HTML or JavaScript runs, so our assistance cannot appear or open another browser. After it passes, the branded gate can offer assistance before Turnstile finishes. To prioritize assistance on first arrival, an operator would need to reconsider any blanket challenge rule and rely on the branded gate plus targeted edge protections; the app makes no dashboard changes or user-agent exemptions. Keep the double-check setup if desired, accepting this order. See [Cloudflare's challenge-page flow](https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/).
 
-Automatic attempts require a visible top-level HTTPS page, no back/forward restoration, and any enabled age acknowledgment. The controller writes a session guard and appends `_lp_handoff=1` to the current page URL before trying. The marker only suppresses another automatic attempt. It grants no access and does not acknowledge age. If neither storage nor history permits a durable guard, automatic opening is skipped.
+Automatic attempts require a visible top-level HTTPS page and no back/forward restoration. All-scope age acknowledgment precedes optional opening; in required-browser mode the same-page switch precedes acknowledgment. The controller writes a session guard and appends `_lp_handoff=1` to the current page URL before trying. The marker only suppresses another automatic attempt. It grants no access and does not acknowledge age. If neither storage nor history permits a durable guard, automatic opening is skipped.
 
 Existing query serialization and fragments are retained when adding the marker. It is never appended to outbound destinations. An address-bar `url` or `next` parameter cannot select a destination. Reloading, returning from another app, or a failed scheme does not trigger automatic retries.
 

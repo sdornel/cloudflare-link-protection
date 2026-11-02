@@ -4,6 +4,7 @@ import { createHandoffController } from './handoff-controller.js';
 import { createAnalytics } from './analytics.js';
 import { createAgeAcknowledgment } from './age-acknowledgment.js';
 import { initializeHandoffDiagnostics } from './handoff-diagnostics.js';
+import { requireExternalBrowser } from './external-browser-dialog.js';
 
 export function initialize(win = window) {
   const doc = win.document;
@@ -15,6 +16,12 @@ export function initialize(win = window) {
   let analytics = { track() {}, setConsent() {}, permitted: false };
   try { analytics = createAnalytics(win, options.analytics); } catch {}
   const track = (name, fields = {}) => { try { analytics.track(name, { platform: context.platform, ...fields }); } catch {} };
+  const external = requireExternalBrowser({ window: win, options: options.browserOpening, context, track,
+    targetURL: () => guardedPageURL(win.location.href)?.url });
+  if (external) {
+    if (doc.visibilityState === 'visible' && !doc.prerendering) track('landing_view');
+    return { controller: external, analytics, age: null };
+  }
   let automaticPage = () => {};
   const age = createAgeAcknowledgment({ window: win, document: doc, options: options.ageAcknowledgment, track, onAccepted: () => automaticPage(true) });
   const panel = doc.getElementById('handoff-panel');

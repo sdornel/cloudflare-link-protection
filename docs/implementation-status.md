@@ -1,6 +1,14 @@
 # Implementation and verification status
 
-Updated 2026-10-31. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
+Updated 2026-11-01. The current release scope supports direct/native navigation. Dedicated Bouncy integration is deferred in `SPEC.md`.
+
+## Required-browser popup — 2026-11-01
+
+Added opt-in `browserOpening.requireExternalBrowser`. A shared profile/verification module requests one same-page handoff, then shows one browser-opening control and app-menu instructions after an unconfirmed attempt. The profile stays inert in detected mobile Instagram/Facebook, with no help/dismiss/continue controls. Automatic attempts use existing guards; a real Android button tap uses default intent-anchor activation. Ordinary browsers retain verification and age acknowledgment. Turnstile waits for the browser-flow decision instead of auto-submitting behind the popup. Labels and styling are configurable; sample/default behavior is unchanged.
+
+All 154 Node tests passed. All 14 new required-browser Chromium cases passed, alongside the 11 existing handoff cases and 14 Chromium enhancement cases. Tests use generated neutral assets and real Chromium navigation observations, with synthetic verification fixtures. They cover popup timing, first taps/keyboard, guarded returns/reloads, unavailable storage, unsupported URL preservation, normal-browser age/verification behavior, failed POST recovery, and missing scripts. The mobile popup screenshot was inspected. iOS classification is tested in Chromium; physical Instagram/iOS/Android browser launch and prompt behavior remain unconfirmed. Earlier broader-suite limitations below still apply.
+
+Built and deployed using the ignored local configuration, with the required-browser flow enabled. The public-source/Git-index audit passed for 88 files. The live public module matched client build `fb38a54f0b51` byte for byte; an automated profile request still received the outer Cloudflare challenge. The deployment does not synchronize the private GitHub build secret; the limitation below still applies.
 
 ## Publication checks — 2026-10-31
 

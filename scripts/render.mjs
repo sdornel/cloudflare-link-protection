@@ -44,6 +44,7 @@ export function renderPage({ config, template, profile, share, assetVersion, cli
     PREVIEW_NOTE: config.placeholderLinks && config.previewNote ? `<p class="preview-note">${escapeHTML(config.previewNote)}</p>` : '',
     SETUP_GUIDE: showSetupGuide ? setupGuide() : '',
     ENHANCEMENTS: enhanced ? enhancements(config) : '',
+    EXTERNAL_BROWSER_DIALOG: enhanced ? externalBrowserDialog(config) : '',
     AGE_NOTICE: config.ageAcknowledgment.enabled ? ageNotice(config) : '',
     CLIENT: enhanced ? `<script id="profile-options" type="application/json">${safeJSON(publicOptions(config))}</script><script type="module" src="${assetBase}assets/${clientVersion}/app.js"${needsHandlers ? ' blocking="render"' : ''}></script>` : '',
     ANALYTICS: config.analytics.cloudflareToken ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${config.analytics.cloudflareToken}"}'></script>` : '',
@@ -79,6 +80,7 @@ function ageNotice(config) {
   return `<section id="age-notice" class="notice" aria-label="Age acknowledgment"><p>${escapeHTML(age.message)}</p><button id="age-accept" class="quiet-button" type="button" hidden>${escapeHTML(age.acceptLabel)}</button><p id="age-status" class="status" role="status"></p><noscript><p>Please acknowledge this notice before using the links. This is a self-attestation notice.</p></noscript></section>`;
 }
 export function browserAssistance(config) {
+  if (config.browserOpening.requireExternalBrowser) return '';
   const text = config.browserOpening.labels;
   return `${config.browserOpening.showManual ? `<div class="browser-tools"><button id="browser-open" class="quiet-button" type="button" hidden>${escapeHTML(text.open)}</button></div>` : ''}
       <section id="handoff-panel" class="notice" aria-label="Browser assistance" hidden>
@@ -86,6 +88,15 @@ export function browserAssistance(config) {
         <p id="handoff-instructions" class="hint"></p>
         <div class="actions"><a id="handoff-direct" class="quiet-button" href="#links">${escapeHTML(text.continue)}</a><button id="handoff-retry" class="quiet-button" type="button" hidden>${escapeHTML(text.retry)}</button><button id="handoff-dismiss" class="quiet-button" type="button">${escapeHTML(text.dismiss)}</button></div>
       </section>`;
+}
+export function externalBrowserDialog(config) {
+  if (!config.browserOpening.requireExternalBrowser) return '';
+  const text = config.browserOpening.labels;
+  return `<dialog id="external-browser-dialog" class="external-browser-dialog" aria-labelledby="external-browser-title" aria-describedby="external-browser-instructions">
+      <h2 id="external-browser-title">${escapeHTML(text.externalTitle)}</h2>
+      <p id="external-browser-instructions">${escapeHTML(text.externalInstructions)}</p>
+      <a id="external-browser-open" class="link link-primary" href="#" autofocus>${escapeHTML(text.externalOpen)}</a>
+    </dialog>`;
 }
 function enhancements(config) {
   return browserAssistance(config) + (config.analytics.ga4MeasurementId ? '<section id="analytics-consent" class="notice" aria-label="Optional analytics" hidden><p>Allow optional usage measurement to help improve this page?</p><p id="analytics-status" class="status" role="status"></p><div class="actions"><button id="analytics-allow" class="quiet-button" type="button">Allow analytics</button><button id="analytics-decline" class="quiet-button" type="button">Keep analytics off</button></div></section>' : '');

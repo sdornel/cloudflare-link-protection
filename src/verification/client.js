@@ -63,5 +63,13 @@ retry.addEventListener('click', () => {
   const target = new URL(form.elements.returnTo.value, location.origin);
   if (target.origin === location.origin) location.replace(target.href);
 });
-if (form.dataset.state === 'loading') start();
-else { show(form.dataset.state); }
+function initializeVerification() {
+  // DOMContentLoaded waits for the browser-opening module too. In required
+  // browser mode do not let an auto-solving widget submit behind the modal.
+  // An external browser runs a fresh check; module failure retains normal verification.
+  if (document.documentElement.dataset.externalBrowserRequired === 'true') return;
+  if (form.dataset.state === 'loading') start();
+  else show(form.dataset.state);
+}
+if (document.readyState === 'complete') initializeVerification();
+else document.addEventListener('DOMContentLoaded', initializeVerification, { once: true });

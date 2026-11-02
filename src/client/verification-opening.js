@@ -1,6 +1,7 @@
 import { browserContext } from './browser-context.js';
 import { guardedPageURL, openingPlan } from './browser-opening.js';
 import { createHandoffController } from './handoff-controller.js';
+import { requireExternalBrowser } from './external-browser-dialog.js';
 
 // POST error pages must open the original GET page, never the verify endpoint.
 // The server validates this hidden return path; retain a same-origin client check.
@@ -23,6 +24,10 @@ export function initializeVerificationOpening(win = window) {
   const options = JSON.parse(data.textContent);
   const context = browserContext(win.navigator);
   if (options.mode !== 'native' || !context.eligible || !verificationPageURL(win, form)) return;
+  const external = requireExternalBrowser({ window: win, options, context,
+    targetURL: () => verificationPageURL(win, form),
+    allowAutomatic: form.dataset.state === 'loading' && win.location.pathname !== '/_verification/verify' });
+  if (external) return external;
   const manual = doc.getElementById('browser-open');
   const panel = doc.getElementById('handoff-panel');
   const status = doc.getElementById('handoff-status');

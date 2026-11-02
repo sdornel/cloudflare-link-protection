@@ -5,6 +5,11 @@ const labels = {
   unconfirmed: 'Still here? You can continue here or try opening your browser again.',
   iosInstructions: 'You can also use the app’s menu to open this page in your browser.',
   androidInstructions: 'You can also use the app’s menu and choose Open in browser.',
+  externalTitle: 'Open this page in your browser',
+  externalChromeUnconfirmed: "Couldn't open in Chrome automatically.",
+  externalUnconfirmed: "Couldn't open in your browser automatically.",
+  externalInstructions: 'Tap the button below, or use the three-dot menu at the top right and choose Open in browser.',
+  externalOpen: 'Open in browser',
 };
 const choice = (value, values, field) => { if (!values.includes(value)) throw new Error(`${field} has an unsupported value.`); };
 const boolean = (value, field) => { if (typeof value !== 'boolean') throw new Error(`${field} must be true or false.`); };
@@ -23,13 +28,14 @@ export function normalizeFeatures(config) {
   const input = config.browserOpening ?? {};
   if (input.labels !== undefined && !object(input.labels)) throw new Error('browserOpening.labels must be an object.');
   const browserOpening = {
-    mode: 'direct', autoOpen: false, androidAutoOpen: false, showManual: true, iosStrategy: 'instagram',
+    mode: 'direct', autoOpen: false, androidAutoOpen: false, showManual: true, requireExternalBrowser: false, iosStrategy: 'instagram',
     androidPackage: 'com.android.chrome', fallbackDelayMs: 1800, ...input,
     labels: { ...labels, ...input.labels },
   };
   choice(browserOpening.mode, ['native', 'direct'], 'browserOpening.mode');
   choice(browserOpening.iosStrategy, ['instagram', 'safari', 'chrome'], 'browserOpening.iosStrategy');
-  for (const field of ['autoOpen', 'androidAutoOpen', 'showManual']) boolean(browserOpening[field], `browserOpening.${field}`);
+  for (const field of ['autoOpen', 'androidAutoOpen', 'showManual', 'requireExternalBrowser']) boolean(browserOpening[field], `browserOpening.${field}`);
+  if (browserOpening.requireExternalBrowser && browserOpening.mode !== 'native') throw new Error('browserOpening.requireExternalBrowser requires native mode.');
   if (!Number.isInteger(browserOpening.fallbackDelayMs) || browserOpening.fallbackDelayMs < 800 || browserOpening.fallbackDelayMs > 5000) throw new Error('browserOpening.fallbackDelayMs must be an integer from 800 to 5000.');
   if (typeof browserOpening.androidPackage !== 'string' || (browserOpening.androidPackage !== 'default' && !/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(browserOpening.androidPackage))) throw new Error('browserOpening.androidPackage must be default or an Android package name.');
   for (const [key, text] of Object.entries(browserOpening.labels)) {
@@ -65,7 +71,7 @@ export function normalizeFeatures(config) {
 export function publicOptions(config) {
   const b = config.browserOpening, a = config.ageAcknowledgment;
   return {
-    browserOpening: { mode: b.mode, autoOpen: b.autoOpen, androidAutoOpen: b.androidAutoOpen, showManual: b.showManual, iosStrategy: b.iosStrategy, androidPackage: b.androidPackage, fallbackDelayMs: b.fallbackDelayMs, labels: Object.fromEntries(Object.keys(labels).map((key) => [key, b.labels[key]])) },
+    browserOpening: { mode: b.mode, autoOpen: b.autoOpen, androidAutoOpen: b.androidAutoOpen, showManual: b.showManual, requireExternalBrowser: b.requireExternalBrowser, iosStrategy: b.iosStrategy, androidPackage: b.androidPackage, fallbackDelayMs: b.fallbackDelayMs, labels: Object.fromEntries(Object.keys(labels).map((key) => [key, b.labels[key]])) },
     ageAcknowledgment: { enabled: a.enabled, remember: a.remember, scope: a.scope, primaryLinkId: config.primaryLink.id },
     analytics: { ga4MeasurementId: config.analytics.ga4MeasurementId, ga4Consent: config.analytics.ga4Consent, debug: config.analytics.debug },
   };

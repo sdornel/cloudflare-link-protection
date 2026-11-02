@@ -61,6 +61,12 @@ Create `config/site.json` by copying the sample on a fresh clone; do not overwri
 
 Icons are `none`, `arrow`, or `heart`. Destinations require HTTPS except for the exact built-in placeholder `/example/more-soon/`, permitted only when `placeholderLinks` is true. That route follows the configured opening mode; native handoff resolves it against the current HTTPS origin without copying page query parameters. HTTP previews use normal navigation. Other relative paths, query variations, and protocol-relative URLs are rejected. To use a final site, replace placeholder links with HTTPS destinations, set `siteUrl`, and set `placeholderLinks: false`. The production build rejects an unset origin or unfinished placeholders; it cannot verify ownership or availability of destinations.
 
+## Required-browser popup
+
+`browserOpening.requireExternalBrowser` defaults to `false` and requires `mode: "native"`. Set it to `true` with `autoOpen: true` and `androidAutoOpen: true` for one automatic same-page attempt followed by a popup in mobile Instagram/Facebook. It has one **Open in browser** control plus three-dot menu instructions, even when `showManual` is `false`. There is no in-app continuation in this mode. External browsers retain normal verification, age acknowledgment, and links. See [the flow, labels, and limitations](browser-opening.md#require-an-external-browser-before-continuing).
+
+Use the complete private configuration for deployment; editing `config/site.json` does not update Cloudflare's `SITE_CONFIG_JSON` build secret. Sync it or update that secret before the next GitHub-triggered build. Shared code and neutral sample configuration can stay public.
+
 ## Status pill
 
 To show a small rounded pill with a green dot and **Online** below the biography, merge this into the complete private configuration:

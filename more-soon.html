@@ -441,6 +441,59 @@ button {
   padding-inline: 0;
 }
 
+.external-browser-dialog {
+  display: none;
+  width: min(420px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+  margin: auto;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--link-background);
+  color: var(--text);
+  text-align: center;
+  box-shadow: 0 20px 70px rgb(0 0 0 / 0.2);
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.external-browser-dialog[open] {
+  display: block;
+}
+
+.external-browser-dialog::backdrop {
+  background: rgb(25 18 25 / 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.external-browser-dialog h2 {
+  margin: 0 0 16px;
+  font-size: clamp(22px, 5vw, 28px);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.external-browser-dialog p {
+  margin: 0 0 24px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.external-browser-dialog .link {
+  width: 100%;
+  font-size: 17px;
+  min-height: 56px;
+  animation: none;
+}
+
+.external-browser-dialog .link[aria-disabled="true"] {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 @media (hover: hover) {
 .link:hover {
   transform: translateY(-2px);

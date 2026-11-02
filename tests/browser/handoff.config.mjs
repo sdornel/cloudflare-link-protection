@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 // No preview server or local/private deployment build is needed for this suite.
 export default defineConfig({
   testDir: '.',
-  testMatch: 'handoff.spec.mjs',
+  testMatch: ['handoff.spec.mjs', 'external-browser.spec.mjs'],
   outputDir: fileURLToPath(new URL('../../test-results/handoff/', import.meta.url)),
   workers: 1,
   retries: 0,

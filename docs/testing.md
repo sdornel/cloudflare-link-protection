@@ -51,7 +51,7 @@ npx playwright install chromium
 npm run test:handoff
 ```
 
-On Linux, `npx playwright install --with-deps chromium` also installs the required system libraries. `npm run test:handoff -- --list` lists the cases without starting a browser. This command builds only the neutral demo into a temporary directory and serves its unchanged files and CSP through HTTPS test routing; it does not rebuild `dist`, read private configuration, contact the live domain or deploy anything.
+On Linux, `npx playwright install --with-deps chromium` also installs the required system libraries. `npm run test:handoff -- --list` lists the cases without starting a browser. This command builds the neutral demo and synthetic required-browser configurations into temporary directories and serves their actual generated files through HTTPS test routing; it does not rebuild `dist`, read private configuration, contact the live domain or deploy anything.
 
 The suite uses Android touch emulation and real trusted taps. CDP observes actual renderer navigation requests from the production launch code; it does not replace the launch function or infer a request from our analytics. Android CTA checks require the `anchorClick` reason, rejecting a scripted redirect even if its intent URI is correct. They cover first tap while arrival is pending, after its timeout, after a simulated stale pagehide, and with session storage blocked. Each case follows Continue here → More soon → Back to example → first returning tap. Assertions reject silent in-app navigation, extra native attempts and popups, and check the exact destination and restoration of the original href. Keyboard activation exercises the same default link action. Ordinary Chrome and unavailable-entry-script cases retain direct navigation.
 
@@ -80,6 +80,19 @@ npm run screenshots
 ```
 
 This builds and serves the neutral sample in an isolated temporary directory, then captures `/example/` in `docs/images/demo-mobile.png` and `docs/images/demo-desktop.png`. It cannot select private configuration or browse a production hostname. Inspect both images before committing them. The reviewed captures are embedded in README. The CI browser job also uploads neutral screenshot/test evidence when it can run. No screenshots are fabricated when the browser is unavailable.
+
+## Required-browser flow on a phone
+
+Enable `requireExternalBrowser`, `autoOpen`, and `androidAutoOpen` in a native-mode test deployment. This flow is separate from the default hosted example below.
+
+1. Open the configured HTTPS profile from a fresh Instagram session on Android. Record whether Instagram offers its leaving-app prompt; its wording and appearance are outside the site's control.
+2. If still in the app, expect the Chrome popup after the configured delay, with exactly one **Open in browser** button and the top-right three-dot menu instructions. There must be no help, dismiss, or Continue here control.
+3. Tap once. Check whether Chrome opens the same profile with the original query parameters and `_lp_handoff=1`. If the app refuses, verify its menu can open the page. Returning or reloading must not launch automatically again.
+4. In Chrome, expect no browser popup. Complete any verification, then confirm that the primary age acknowledgment still appears before its configured destination.
+5. Repeat with Facebook, iOS Instagram, and ordinary Safari/Chrome. iOS should use generic browser wording. Test a canceled launch and a device without the configured Android browser; the popup should remain usable, although app restrictions may prevent continuation.
+6. With branded verification enabled, check that its widget does not start behind the popup, and does work in the external browser. Cloudflare's outer challenge may still precede the site.
+
+`tests/browser/external-browser.spec.mjs` covers the generated profile/gate popup, first trusted tap and keyboard intent dispatch, timeout/return/reload guards, blocked storage, unsupported URL preservation, no-JS baseline, age sequencing, normal browser verification, failed POST recovery, and a missing browser module. iOS UA cases exercise classification in Chromium; they do not constitute WebKit or physical-device launch tests. Synthetic Turnstile responses test application wiring, not Cloudflare bot classification.
 
 ## Hosted example handoff check
 

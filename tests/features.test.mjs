@@ -18,6 +18,7 @@ test('legacy features default to direct and public options use an explicit allow
   assert.equal(value.browserOpening.androidAutoOpen, false);
   assert.equal(publicOptions(value).browserOpening.androidAutoOpen, false);
   assert.equal(value.browserOpening.showManual, true);
+  assert.equal(publicOptions(value).browserOpening.requireExternalBrowser, false);
   assert.deepEqual(value.statusBadge, { enabled: false, label: 'Online' });
   assert.ok(!Object.hasOwn(publicOptions(value), 'statusBadge'));
   assert.doesNotMatch(JSON.stringify(publicOptions(value)), /PRIVATE_MARKER|cloudflareToken/);
@@ -35,6 +36,8 @@ test('feature validation rejects invalid modes, ranges, IDs, disabled-link strat
     c => c.browserOpening = { autoOpen: 'yes' },
     c => c.browserOpening = { androidAutoOpen: 'yes' },
     c => c.browserOpening = { androidAutoOpen: null },
+    c => c.browserOpening = { requireExternalBrowser: 'true' },
+    c => c.browserOpening = { mode: 'direct', requireExternalBrowser: true },
     c => c.browserOpening = { fallbackDelayMs: 0 },
     c => c.browserOpening = { fallbackDelayMs: Infinity },
     c => c.browserOpening = { androidPackage: 'com.test;evil=yes' },
@@ -58,6 +61,18 @@ test('feature validation rejects invalid modes, ranges, IDs, disabled-link strat
     c => c.statusBadge = { live: true },
   ];
   for (const mutate of mutations) { const config = fresh(); mutate(config); assert.throws(() => validateConfig(config), error => !error.message.includes('SECRET_MARKER')); }
+});
+
+test('required-browser options and text are validated and published independently of inline controls', () => {
+  const config = fresh();
+  config.browserOpening = { mode: 'native', showManual: false, requireExternalBrowser: true,
+    labels: { externalTitle: 'Open your browser', externalOpen: 'Open now' } };
+  validateConfig(config);
+  const options = publicOptions(normalizeFeatures(config)).browserOpening;
+  assert.equal(options.requireExternalBrowser, true);
+  assert.equal(options.showManual, false);
+  assert.equal(options.labels.externalOpen, 'Open now');
+  assert.match(options.labels.externalChromeUnconfirmed, /Chrome/);
 });
 
 test('age scope defaults to all; primary scope publishes only its target ID and behavior', () => {
